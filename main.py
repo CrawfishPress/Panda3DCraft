@@ -11,8 +11,6 @@ loadPrcFile('config/general.prc')
 if __debug__:
     loadPrcFile('config/dev.prc')
 
-base = ShowBase()
-
 octavesElev = 5
 octavesRough = 2
 octavesDetail = 1
@@ -24,71 +22,75 @@ verboseLogging = False
 fancyRendering = False
 wantNewGeneration = False
 fillWorld = False
-base.setFrameRateMeter(True)
 
 paused = False
+pickerRay = None
+traverser = None
+handler = None
+pause_menu = None
 
 inventory = [DIRT, COBBLESTONE, GLASS, GRASS, BRICKS, WOOD, LEAVES, PLANKS, STONE]
 currentBlock = inventory[0]
+currentBlockText = None
 
-currentSelectedText = DirectLabel(text="Current block:", text_fg=(1, 1, 1, 1), frameColor=(0, 0, 0, 0), parent=aspect2d,
-                                  scale=0.05, pos=(0, 0, -0.9))
-currentBlockText = DirectLabel(text=blockNames[currentBlock], text_fg=(1, 1, 1, 1), frameColor=(0, 0, 0, 0),
-                               parent=aspect2d, scale=0.05, pos=(0, 0, -0.95))
+base = ShowBase()
 
 
 def pause():
-    global paused
+    global paused, pause_menu
     paused = not paused
+
+    if not pause_menu:
+        pause_menu = PauseScreen()
 
     if paused:
         base.disableMouse()
-        pauseScreen.showPause()
+        pause_menu.showPause()
     else:
         base.enableMouse()
-        pauseScreen.hide()
+        pause_menu.hide()
 
 
 class PauseScreen:
     def __init__(self):
-        self.pauseScr = aspect2d.attachNewNode(
-            "pause")  # This is used so that everything can be stashed at once... except for dim, which is on render2d
-        self.loadScr = aspect2d.attachNewNode("load")  # It also helps for flipping between screens
-        self.saveScr = aspect2d.attachNewNode("save")
+        # This is used so that everything can be stashed at once... except for dim, which is on render2d
+        self.pauseScr = base.aspect2d.attachNewNode("pause")
+        self.loadScr = base.aspect2d.attachNewNode("load")  # It also helps for flipping between screens
+        self.saveScr = base.aspect2d.attachNewNode("save")
 
         cm = CardMaker('card')
-        self.dim = render2d.attachNewNode(cm.generate())
+        self.dim = base.render2d.attachNewNode(cm.generate())
         self.dim.setPos(-1, 0, -1)
         self.dim.setScale(2)
         self.dim.setTransparency(1)
         self.dim.setColor(0, 0, 0, 0.5)
 
-        self.buttonModel = loader.loadModel('gfx/button')
-        inputTexture = loader.loadTexture('gfx/tex/button_press.png')
+        self.buttonModel = base.loader.loadModel('gfx/button')
+        inputTexture = base.loader.loadTexture('gfx/tex/button_press.png')
 
         # Pause Screen
         self.unpauseButton = DirectButton(geom=(
-        self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-        self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                                          relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, 0.3),
-                                          text="Resume Game", text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
-                                          command=pause)
+            self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+                                  relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, 0.3),
+                                  text="Resume Game", text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
+                                  command=pause)
         self.saveButton = DirectButton(geom=(
-        self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-        self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                                       relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, 0.15), text="Save Game",
-                                       text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04), command=self.showSave)
+            self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+                                  relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, 0.15), text="Save Game",
+                                  text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04), command=self.showSave)
         self.loadButton = DirectButton(geom=(
-        self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-        self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                                       relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, -0.15),
-                                       text="Load Game", text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
-                                       command=self.showLoad)
+            self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+                                  relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, -0.15),
+                                  text="Load Game", text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
+                                  command=self.showLoad)
         self.exitButton = DirectButton(geom=(
-        self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-        self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                                       relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, -0.3), text="Quit Game",
-                                       text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04), command=exit)
+            self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+                                  relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, -0.3), text="Quit Game",
+                                  text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04), command=exit)
 
         # Save Screen
         self.saveText = DirectLabel(text="Type in a name for your world", text_fg=(1, 1, 1, 1), frameColor=(0, 0, 0, 0),
@@ -99,16 +101,16 @@ class PauseScreen:
                                     frameTexture=inputTexture, parent=self.saveScr, text_fg=(1, 1, 1, 1),
                                     pos=(-0.6, 0, 0.1), text_scale=0.75)
         self.saveGameBtn = DirectButton(geom=(
-        self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-        self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                                        relief=None, parent=self.saveScr, scale=0.5, pos=(0, 0, -0.1), text="Save",
-                                        text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04), command=self.save)
+            self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+                                  relief=None, parent=self.saveScr, scale=0.5, pos=(0, 0, -0.1), text="Save",
+                                  text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04), command=self.save)
         self.backButton = DirectButton(geom=(
-        self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-        self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                                       relief=None, parent=self.saveScr, scale=0.5, pos=(0, 0, -0.25), text="Back",
-                                       text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
-                                       command=self.showPause)
+            self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+                                  relief=None, parent=self.saveScr, scale=0.5, pos=(0, 0, -0.25), text="Back",
+                                  text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
+                                  command=self.showPause)
 
         # Load Screen
         numItemsVisible = 3
@@ -122,8 +124,10 @@ class PauseScreen:
             decButton_text_fg=(1, 1, 1, 1),
             decButton_borderWidth=(0.005, 0.005),
             decButton_scale=(1.5, 1, 2),
-            decButton_geom=(self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-                            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+            decButton_geom=(self.buttonModel.find('**/button_up'),
+                            self.buttonModel.find('**/button_press'),
+                            self.buttonModel.find('**/button_over'),
+                            self.buttonModel.find('**/button_disabled')),
             decButton_geom_scale=0.1,
             decButton_relief=None,
 
@@ -135,8 +139,10 @@ class PauseScreen:
             incButton_borderWidth=(0.005, 0.005),
             incButton_hpr=(0, 180, 0),
             incButton_scale=(1.5, 1, 2),
-            incButton_geom=(self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-                            self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+            incButton_geom=(self.buttonModel.find('**/button_up'),
+                            self.buttonModel.find('**/button_press'),
+                            self.buttonModel.find('**/button_over'),
+                            self.buttonModel.find('**/button_disabled')),
             incButton_geom_scale=0.1,
             incButton_relief=None,
 
@@ -153,11 +159,11 @@ class PauseScreen:
             parent=self.loadScr
         )
         self.backButton = DirectButton(geom=(
-        self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
-        self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                                       relief=None, parent=self.loadScr, scale=0.5, pos=(0, 0, -0.5), text="Back",
-                                       text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
-                                       command=self.showPause)
+           self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+           self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
+                                 relief=None, parent=self.loadScr, scale=0.5, pos=(0, 0, -0.5), text="Back",
+                                 text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
+                                 command=self.showPause)
         self.loadText = DirectLabel(text="Select World", text_fg=(1, 1, 1, 1), frameColor=(0, 0, 0, 0),
                                     parent=self.loadScr, scale=0.075, pos=(0, 0, 0.55))
         self.loadText2 = DirectLabel(text="", text_fg=(1, 1, 1, 1), frameColor=(0, 0, 0, 0), parent=self.loadScr,
@@ -183,35 +189,38 @@ class PauseScreen:
 
         self.loadList.removeAndDestroyAllItems()
 
-        f = []
+        file_list = []
         if not os.path.exists('saves/'):
             os.makedirs('saves/')
         for (dirpath, dirnames, filenames) in os.walk('saves/'):
-            f.extend(filenames)
+            file_list.extend(filenames)
             break
 
-        for file in f:
-            l = DirectButton(geom=(self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
+        for one_file in file_list:
+            l = DirectButton(geom=(self.buttonModel.find('**/button_up'),
+                                   self.buttonModel.find('**/button_press'),
                                    self.buttonModel.find('**/button_over'),
                                    self.buttonModel.find('**/button_disabled')),
-                             relief=None, scale=0.5, pos=(0, 0, -0.75), text=file.strip('.sav'), text_fg=(1, 1, 1, 1),
-                             text_scale=0.1, text_pos=(0, -0.04), command=self.load, extraArgs=[file])
+                             relief=None, scale=0.5, pos=(0, 0, -0.75), text=one_file.strip('.sav'), text_fg=(1, 1, 1, 1),
+                             text_scale=0.1, text_pos=(0, -0.04), command=self.load, extraArgs=[one_file])
             self.loadList.addItem(l)
 
     def save(self, worldName=None):
+
         self.saveText2['text'] = "Saving..."
-        if worldName == None:
+        if not worldName:
             worldName = self.saveName.get(True)
         print("Saving %s..." % worldName)
         dest = 'saves/%s.sav' % worldName
-        dir = os.path.dirname(dest)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
+        dest_dir = os.path.dirname(dest)
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
         try:
             f = open(dest, 'wt')
         except IOError:
             self.saveText2[
-                'text'] = "Could not save. Make sure the world name does not contain the following characters: \\ / : * ? \" < > |"
+                'text'] = "Could not save. Make sure the world name " \
+                          "does not contain the following characters: \\ / : * ? \" < > |"
             print("Failed!")
             return
         for key in world:
@@ -250,75 +259,82 @@ class PauseScreen:
         self.dim.stash()
 
 
-pauseScreen = PauseScreen()
-
-
 def addBlock(blockType, x, y, z):
+    global base
+
     try:
         world[(x, y, z)].cleanup()
-    except:
-        pass
-    block = Block(blockType, x, y, z)
+    except Exception as ex:
+        print("\ncleanup: [%s]" % str(ex))
+    block = Block(blockType, base, x, y, z)
     world[(x, y, z)] = block
     return
 
 
-for x in range(0, 16):
-    for y in range(0, 16):
-        amplitude = random.randrange(0.0, 5.0)
-        blockType = DIRT
-        if wantNewGeneration:
-            z = max(min(int(snoise2(x / freq, y / freq, octavesElev) + (
-            snoise2(x / freq, y / freq, octavesRough) * snoise2(x / freq, y / freq, octavesDetail)) * 64 + 64), 128), 0)
-            addBlock(blockType, x, y, z)
-        else:
-            z = max((int(snoise2(x / freq, y / freq, 5) * amplitude) + 8), 0)
-            addBlock(blockType, x, y, z)
-        if fillWorld:
-            for height in range(0, z + 1):
-                addBlock(blockType, x, y, height)
-        if verboseLogging:
-            print("Generated %s at (%d, %d, %d)" % (blockNames[blockType], x, y, z))
+def build_world():
 
-alight = AmbientLight('alight')
-alight.setColor(VBase4(0.6, 0.6, 0.6, 1))
-alnp = render.attachNewNode(alight)
-render.setLight(alnp)
-slight = Spotlight('slight')
-slight.setColor(VBase4(1, 1, 1, 1))
-lens = PerspectiveLens()
-slight.setLens(lens)
-slnp = render.attachNewNode(slight)
-slnp.setPos(8, -9, 128)
-slnp.setHpr(0, 270, 0)
-render.setLight(slnp)
+    global pickerRay, traverser, handler, base
 
-if fancyRendering:
-    # Use a 512x512 resolution shadow map
-    slight.setShadowCaster(True, 512, 512)
-    # Enable the shader generator for the receiving nodes
-    render.setShaderAuto()
+    for x in range(0, 16):
+        for y in range(0, 16):
+            amplitude = random.randrange(0.0, 5.0)
+            blockType = DIRT
+            if wantNewGeneration:
+                z = max(min(int(snoise2(x / freq, y / freq, octavesElev) + (
+                    snoise2(x / freq, y / freq, octavesRough) *
+                        snoise2(x / freq, y / freq, octavesDetail)) * 64 + 64), 128), 0)
+                addBlock(blockType, x, y, z)
+            else:
+                z = max((int(snoise2(x / freq, y / freq, 5) * amplitude) + 8), 0)
+                addBlock(blockType, x, y, z)
+            if fillWorld:
+                for height in range(0, z + 1):
+                    addBlock(blockType, x, y, height)
+            if verboseLogging:
+                print("Generated %s at (%d, %d, %d)" % (blockNames[blockType], x, y, z))
 
-traverser = CollisionTraverser()
-handler = CollisionHandlerQueue()
+    alight = AmbientLight('alight')
+    alight.setColor(VBase4(0.6, 0.6, 0.6, 1))
+    alnp = base.render.attachNewNode(alight)
+    base.render.setLight(alnp)
+    slight = Spotlight('slight')
+    slight.setColor(VBase4(1, 1, 1, 1))
+    lens = PerspectiveLens()
+    slight.setLens(lens)
+    slnp = base.render.attachNewNode(slight)
+    slnp.setPos(8, -9, 128)
+    slnp.setHpr(0, 270, 0)
+    base.render.setLight(slnp)
 
-pickerNode = CollisionNode('mouseRay')
-pickerNP = camera.attachNewNode(pickerNode)
-pickerNode.setFromCollideMask(GeomNode.getDefaultCollideMask())
-pickerRay = CollisionRay()
-pickerNode.addSolid(pickerRay)
-traverser.addCollider(pickerNP, handler)
+    if fancyRendering:
+        # Use a 512x512 resolution shadow map
+        slight.setShadowCaster(True, 512, 512)
+        # Enable the shader generator for the receiving nodes
+        base.render.setShaderAuto()
+
+    traverser = CollisionTraverser()
+    handler = CollisionHandlerQueue()
+
+    pickerNode = CollisionNode('mouseRay')
+    pickerNP = base.camera.attachNewNode(pickerNode)
+    pickerNode.setFromCollideMask(GeomNode.getDefaultCollideMask())
+    pickerRay = CollisionRay()
+    pickerNode.addSolid(pickerRay)
+    traverser.addCollider(pickerNP, handler)
 
 
 def handlePick(right=False):
+
+    global pickerRay, traverser, handler, paused
+
     if paused:
-        return  # no
+        return
 
     if base.mouseWatcherNode.hasMouse():
         mpos = base.mouseWatcherNode.getMouse()
         pickerRay.setFromLens(base.camNode, mpos.getX(), mpos.getY())
 
-        traverser.traverse(render)
+        traverser.traverse(base.render)
         if handler.getNumEntries() > 0:
             handler.sortEntries()
             pickedObj = handler.getEntry(0).getIntoNodePath()
@@ -337,38 +353,45 @@ def handlePick(right=False):
 
 
 def hotbarSelect(slot):
-    global currentBlock
+
+    global currentBlock, currentBlockText
+
     currentBlock = inventory[slot - 1]
     currentBlockText["text"] = blockNames[currentBlock]
+
     if verboseLogging:
         print("Selected hotbar slot %d" % slot)
         print("Current block: %s" % blockNames[currentBlock])
 
 
-base.accept('mouse1', handlePick)
-base.accept('mouse3', handlePick, extraArgs=[True])
-base.accept('escape', pause)
-base.accept('1', hotbarSelect, extraArgs=[1])
-base.accept('2', hotbarSelect, extraArgs=[2])
-base.accept('3', hotbarSelect, extraArgs=[3])
-base.accept('4', hotbarSelect, extraArgs=[4])
-base.accept('5', hotbarSelect, extraArgs=[5])
-base.accept('6', hotbarSelect, extraArgs=[6])
-base.accept('7', hotbarSelect, extraArgs=[7])
-base.accept('8', hotbarSelect, extraArgs=[8])
-base.accept('9', hotbarSelect, extraArgs=[9])
+def setup_base_keys():
+    global base
+
+    base.accept('mouse1', handlePick)
+    base.accept('mouse3', handlePick, extraArgs=[True])
+    base.accept('escape', pause)
+    base.accept('1', hotbarSelect, extraArgs=[1])
+    base.accept('2', hotbarSelect, extraArgs=[2])
+    base.accept('3', hotbarSelect, extraArgs=[3])
+    base.accept('4', hotbarSelect, extraArgs=[4])
+    base.accept('5', hotbarSelect, extraArgs=[5])
+    base.accept('6', hotbarSelect, extraArgs=[6])
+    base.accept('7', hotbarSelect, extraArgs=[7])
+    base.accept('8', hotbarSelect, extraArgs=[8])
+    base.accept('9', hotbarSelect, extraArgs=[9])
 
 
 def handlePickedObject(obj):
     if verboseLogging:
         print("Left clicked a block at %d, %d, %d" % (obj.getX(), obj.getY(), obj.getZ()))
+
     addBlock(AIR, obj.getX(), obj.getY(), obj.getZ())
 
 
 def handleRightPickedObject(obj, west, north, east, south, top, bot):
     if verboseLogging:
         print("Right clicked a block at %d, %d, %d, attempting to place %s" % (
-        obj.getX(), obj.getY(), obj.getZ(), blockNames[currentBlock]))
+            obj.getX(), obj.getY(), obj.getZ(), blockNames[currentBlock]))
     try:
         # not [block face] checks to see if the user clicked on [block face]. this is not confusing at all.
         if world[(obj.getX() - 1, obj.getY(), obj.getZ())].type == AIR and not west:
@@ -398,10 +421,31 @@ def handleRightPickedObject(obj, west, north, east, south, top, bot):
             addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ() - 1)
 
 
-fog = Fog("fog")
-fog.setColor(0.5294, 0.8078, 0.9215)
-fog.setExpDensity(0.015)
-render.setFog(fog)
-base.camLens.setFar(256)
+def setup_fog():
 
-base.run()
+    global currentBlockText, base
+
+    fog = Fog("fog")
+    fog.setColor(0.5294, 0.8078, 0.9215)
+    fog.setExpDensity(0.015)
+    base.render.setFog(fog)
+    base.camLens.setFar(256)
+
+    base.setFrameRateMeter(True)
+
+    currentBlockText = DirectLabel(text=blockNames[currentBlock], text_fg=(1, 1, 1, 1),
+                                   frameColor=(0, 0, 0, 0),
+                                   parent=base.aspect2d, scale=0.05, pos=(0, 0, -0.95))
+
+
+def run_the_world():
+    print("working")
+
+    build_world()
+    setup_base_keys()
+    setup_fog()
+    base.run()
+
+
+if __name__ == '__main__':
+    run_the_world()

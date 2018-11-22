@@ -19,8 +19,9 @@ transparentBlocks = [GLASS, LEAVES]
 class Block:
     notify = DirectNotifyGlobal.directNotify.newCategory('block')
 
-    def __init__(self, type, x, y, z):
-        self.type = type
+    def __init__(self, my_type, the_base, x, y, z):
+        self.type = my_type
+        self.the_base = the_base
         if self.type == AIR:
             del self
             return
@@ -29,8 +30,8 @@ class Block:
         self.y = y
         self.z = z
 
-        self.model = base.loader.loadModel("gfx/block")
-        self.model.reparentTo(base.render)
+        self.model = self.the_base.loader.loadModel("gfx/block")
+        self.model.reparentTo(self.the_base.render)
         self.model.setPos(x, y, z)
         self.model.setTag('blockTag', '1')
         self.model.find('**/SideW').setTag('westTag', '2')
@@ -40,19 +41,19 @@ class Block:
         self.model.find('**/Top').setTag('topTag', '6')
         self.model.find('**/Bottom').setTag('botTag', '7')
 
-        if type in transparentBlocks:
+        if my_type in transparentBlocks:
             self.model.setTransparency(1)
 
-        if type in multiTexBlocks:
-            topTexture = base.loader.loadTexture("gfx/tex/%s_top.png" % blockNames[type].lower())
-            sideTexture = base.loader.loadTexture("gfx/tex/%s_side.png" % blockNames[type].lower())
-            botTexture = base.loader.loadTexture("gfx/tex/%s_bot.png" % blockNames[type].lower())
+        if my_type in multiTexBlocks:
+            topTexture = self.the_base.loader.loadTexture("gfx/tex/%s_top.png" % blockNames[my_type].lower())
+            sideTexture = self.the_base.loader.loadTexture("gfx/tex/%s_side.png" % blockNames[my_type].lower())
+            botTexture = self.the_base.loader.loadTexture("gfx/tex/%s_bot.png" % blockNames[my_type].lower())
             textureStage = self.model.findTextureStage('*')
             self.model.find('**/Top').setTexture(textureStage, topTexture, 1)
             self.model.find('**/Side').setTexture(textureStage, sideTexture, 1)
             self.model.find('**/Bottom').setTexture(textureStage, botTexture, 1)
         else:
-            texture = base.loader.loadTexture("gfx/tex/%s.png" % blockNames[type].lower())
+            texture = self.the_base.loader.loadTexture("gfx/tex/%s.png" % blockNames[my_type].lower())
             textureStage = self.model.findTextureStage('*')
             self.model.setTexture(textureStage, texture, 1)
 
