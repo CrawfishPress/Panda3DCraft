@@ -15,8 +15,10 @@ blockNames = ['Air', 'Dirt', 'Cobblestone', 'Glass', 'Grass', 'Bricks', 'Wood', 
 multiTexBlocks = [GRASS, WOOD]
 transparentBlocks = [GLASS, LEAVES]
 
+
 class Block:
     notify = DirectNotifyGlobal.directNotify.newCategory('block')
+
     def __init__(self, type, x, y, z):
         self.type = type
         if self.type == AIR:
