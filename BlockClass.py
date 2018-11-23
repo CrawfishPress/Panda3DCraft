@@ -1,5 +1,3 @@
-from direct.directnotify import DirectNotifyGlobal
-
 BASE_TEXTURES = 'gfx/tex/'
 
 BLOCKS = {
@@ -32,9 +30,7 @@ BLOCKS = {
 }
 
 
-class Block:
-    notify = DirectNotifyGlobal.directNotify.newCategory('block')
-
+class BlockClass:
     def __init__(self, my_type, the_base, x, y, z):
         self.type = my_type
         self.x, self.y, self.z = x, y, z

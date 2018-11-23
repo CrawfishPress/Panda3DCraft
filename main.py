@@ -7,7 +7,7 @@ from direct.gui.DirectGui import *
 from direct.showbase.ShowBase import ShowBase
 from noise import snoise2
 
-from Block import *
+from BlockClass import BLOCKS, BlockClass
 from menu import setup_pause_menu, is_paused, pause
 
 Core.loadPrcFile('config/general.prc')
@@ -16,64 +16,65 @@ if __debug__:  # True unless Python is started with -O
     print("debug-mode on")
     Core.loadPrcFile('config/dev.prc')
 
-octavesElev = 5
-octavesRough = 2
-octavesDetail = 1
-freq = 16.0 * octavesElev
-
 verboseLogging = True
-fancyRendering = False
-wantNewGeneration = False
-fillWorld = False
 
-pickerRay = None
-traverser = None
-handler = None
+PICKER_RAY = None
+TRAVERSER = None
+COLLISION_HANDLER = None
 PAUSE_MENU = None
 
-currentBlock = 'dirt'
-currentBlockText = None
+CURRENT_BLOCK = 'dirt'
+CUR_BLOCK_TEXT = None
 
-world = {}
-base = ShowBase()
+MY_WORLD = {}
+MY_BASE = ShowBase()
 
 
 def setup_lighting():
-    global pickerRay, traverser, handler, base
+    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE
+    fancyRendering = False
 
     alight = Core.AmbientLight('alight')
     alight.setColor(Core.VBase4(0.6, 0.6, 0.6, 1))
-    alnp = base.render.attachNewNode(alight)
-    base.render.setLight(alnp)
+    alnp = MY_BASE.render.attachNewNode(alight)
+    MY_BASE.render.setLight(alnp)
     slight = Core.Spotlight('slight')
     slight.setColor(Core.VBase4(1, 1, 1, 1))
     lens = Core.PerspectiveLens()
     slight.setLens(lens)
-    slnp = base.render.attachNewNode(slight)
+    slnp = MY_BASE.render.attachNewNode(slight)
     slnp.setPos(8, -9, 128)
     slnp.setHpr(0, 270, 0)
-    base.render.setLight(slnp)
+    MY_BASE.render.setLight(slnp)
 
     if fancyRendering:
         # Use a 512x512 resolution shadow map
         slight.setShadowCaster(True, 512, 512)
         # Enable the shader generator for the receiving nodes
-        base.render.setShaderAuto()
+        MY_BASE.render.setShaderAuto()
 
-    traverser = Core.CollisionTraverser()
-    handler = Core.CollisionHandlerQueue()
+    TRAVERSER = Core.CollisionTraverser()
+    COLLISION_HANDLER = Core.CollisionHandlerQueue()
 
     pickerNode = Core.CollisionNode('mouseRay')
-    pickerNP = base.camera.attachNewNode(pickerNode)
+    pickerNP = MY_BASE.camera.attachNewNode(pickerNode)
     pickerNode.setFromCollideMask(Core.GeomNode.getDefaultCollideMask())
-    pickerRay = Core.CollisionRay()
-    pickerNode.addSolid(pickerRay)
-    traverser.addCollider(pickerNP, handler)
+    PICKER_RAY = Core.CollisionRay()
+    pickerNode.addSolid(PICKER_RAY)
+    TRAVERSER.addCollider(pickerNP, COLLISION_HANDLER)
 
 
 def write_ground_blocks():
 
-    blockType = currentBlock
+    blockType = CURRENT_BLOCK
+
+    wantNewGeneration = False
+    fillWorld = False
+
+    octavesElev = 5
+    octavesRough = 2
+    octavesDetail = 1
+    freq = 16.0 * octavesElev
 
     for x in range(0, 16):
         for y in range(0, 16):
@@ -95,51 +96,51 @@ def write_ground_blocks():
 
 
 def addBlock(blockType, x, y, z):
-    global base, world
+    global MY_BASE, MY_WORLD
 
     with suppress(KeyError, AttributeError):
-        world[(x, y, z)].cleanup()
+        MY_WORLD[(x, y, z)].cleanup()
 
-    world[(x, y, z)] = Block(blockType, base, x, y, z)
+    MY_WORLD[(x, y, z)] = BlockClass(blockType, MY_BASE, x, y, z)
 
 
 def handlePick(right_click=False):
 
-    global pickerRay, traverser, handler, base, world
+    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD
 
     if is_paused():
         return
 
-    if not base.mouseWatcherNode.hasMouse():
+    if not MY_BASE.mouseWatcherNode.hasMouse():
         return
 
-    mpos = base.mouseWatcherNode.getMouse()
-    pickerRay.setFromLens(base.camNode, mpos.getX(), mpos.getY())
+    mpos = MY_BASE.mouseWatcherNode.getMouse()
+    PICKER_RAY.setFromLens(MY_BASE.camNode, mpos.getX(), mpos.getY())
 
-    traverser.traverse(base.render)
-    if handler.getNumEntries() <= 0:
+    TRAVERSER.traverse(MY_BASE.render)
+    if COLLISION_HANDLER.getNumEntries() <= 0:
         return
 
-    handler.sortEntries()
-    pickedObj = handler.getEntry(0).getIntoNodePath()
+    COLLISION_HANDLER.sortEntries()
+    pickedObj = COLLISION_HANDLER.getEntry(0).getIntoNodePath()
     pickedObj = pickedObj.findNetTag('blockTag')
     if pickedObj.isEmpty():
         return
 
     if right_click:
-        addBlockObject(pickedObj, handler.getEntry(0).getIntoNodePath())
+        addBlockObject(pickedObj, COLLISION_HANDLER.getEntry(0).getIntoNodePath())
     else:
         removeBlockObject(pickedObj)
 
 
 def hotbarSelect(slot):
 
-    global currentBlock, currentBlockText
+    global CURRENT_BLOCK, CUR_BLOCK_TEXT
 
     next_block_name = [block_name for block_name, block_val in BLOCKS.items()
                        if block_val['hotkey'] == slot][0]
-    currentBlock = next_block_name
-    currentBlockText["text"] = next_block_name
+    CURRENT_BLOCK = next_block_name
+    CUR_BLOCK_TEXT["text"] = next_block_name
 
     if verboseLogging:
         print("Selected hotbar slot %d" % slot)
@@ -147,14 +148,14 @@ def hotbarSelect(slot):
 
 
 def setup_base_keys():
-    global base
+    global MY_BASE
 
-    base.accept('mouse1', handlePick)
-    base.accept('mouse3', handlePick, extraArgs=[True])
-    base.accept('escape', pause)
+    MY_BASE.accept('mouse1', handlePick)
+    MY_BASE.accept('mouse3', handlePick, extraArgs=[True])
+    MY_BASE.accept('escape', pause)
 
     for one_block in BLOCKS.values():
-        base.accept(str(one_block['hotkey']), hotbarSelect, extraArgs=[one_block['hotkey']])
+        MY_BASE.accept(str(one_block['hotkey']), hotbarSelect, extraArgs=[one_block['hotkey']])
 
 
 def removeBlockObject(obj):
@@ -170,7 +171,7 @@ def addBlockObject(obj, node_path):
 
     if verboseLogging:
         print("Right clicked a block at [%d, %d, %d], attempting to place [%s]" % (
-            obj.getX(), obj.getY(), obj.getZ(), currentBlock))
+            obj.getX(), obj.getY(), obj.getZ(), CURRENT_BLOCK))
 
     moves = {
         'west': {'delta_x': -1, 'delta_y': 0, 'delta_z': 0,
@@ -198,38 +199,38 @@ def addBlockObject(obj, node_path):
     new_coords = (obj_x + delta_x, obj_y + delta_y, obj_z + delta_z)
 
     # Is the block next to clicked-block, available to be created?
-    if new_coords not in world or world[new_coords].type == 'air':
-        addBlock(currentBlock, *new_coords)
+    if new_coords not in MY_WORLD or MY_WORLD[new_coords].type == 'air':
+        addBlock(CURRENT_BLOCK, *new_coords)
 
 
 def setup_fog():
 
-    global currentBlockText, base
+    global CUR_BLOCK_TEXT, MY_BASE
 
     fog = Core.Fog("fog")
     fog.setColor(0.5294, 0.8078, 0.9215)
     fog.setExpDensity(0.015)
-    base.render.setFog(fog)
-    base.camLens.setFar(256)
+    MY_BASE.render.setFog(fog)
+    MY_BASE.camLens.setFar(256)
 
-    base.setFrameRateMeter(True)
+    MY_BASE.setFrameRateMeter(True)
 
-    currentBlockText = DirectLabel(text=currentBlock, text_fg=(1, 1, 1, 1),
-                                   frameColor=(0, 0, 0, 0),
-                                   parent=base.aspect2d, scale=0.05, pos=(0, 0, -0.95))
+    CUR_BLOCK_TEXT = DirectLabel(text=CURRENT_BLOCK, text_fg=(1, 1, 1, 1),
+                                 frameColor=(0, 0, 0, 0),
+                                 parent=MY_BASE.aspect2d, scale=0.05, pos=(0, 0, -0.95))
 
 
 def run_the_world():
-    global base, world
+    global MY_BASE, MY_WORLD
     print("working")
 
     setup_lighting()
     write_ground_blocks()
     setup_base_keys()
     setup_fog()
-    setup_pause_menu(base, world, addBlock)
+    setup_pause_menu(MY_BASE, MY_WORLD, addBlock)
 
-    base.run()
+    MY_BASE.run()
 
 
 if __name__ == '__main__':
