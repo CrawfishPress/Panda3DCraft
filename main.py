@@ -1,4 +1,6 @@
+from contextlib import suppress
 from panda3d.core import *
+import panda3d.core as Core
 from direct.gui.DirectGui import *
 from direct.showbase.ShowBase import ShowBase
 from noise import snoise2
@@ -6,19 +8,18 @@ import os
 import random
 from Block import *
 
-loadPrcFile('config/general.prc')
+Core.loadPrcFile('config/general.prc')
 
-if __debug__:
-    loadPrcFile('config/dev.prc')
+if __debug__:  # True unless Python is started with -O
+    print("debug-mode on")
+    Core.loadPrcFile('config/dev.prc')
 
 octavesElev = 5
 octavesRough = 2
 octavesDetail = 1
 freq = 16.0 * octavesElev
 
-world = {}
-
-verboseLogging = False
+verboseLogging = True
 fancyRendering = False
 wantNewGeneration = False
 fillWorld = False
@@ -29,8 +30,9 @@ traverser = None
 handler = None
 pause_menu = None
 
-inventory = [DIRT, COBBLESTONE, GLASS, GRASS, BRICKS, WOOD, LEAVES, PLANKS, STONE]
-currentBlock = inventory[0]
+world = {}
+
+currentBlock = 'dirt'
 currentBlockText = None
 
 base = ShowBase()
@@ -58,7 +60,7 @@ class PauseScreen:
         self.loadScr = base.aspect2d.attachNewNode("load")  # It also helps for flipping between screens
         self.saveScr = base.aspect2d.attachNewNode("save")
 
-        cm = CardMaker('card')
+        cm = Core.CardMaker('card')
         self.dim = base.render2d.attachNewNode(cm.generate())
         self.dim.setPos(-1, 0, -1)
         self.dim.setScale(2)
@@ -224,7 +226,7 @@ class PauseScreen:
             print("Failed!")
             return
         for key in world:
-            if world[key].type == AIR:
+            if world[key].type == 'air':
                 continue
             f.write(str(key) + ':')
             f.write(str(world[key].type) + '\n')
@@ -240,14 +242,15 @@ class PauseScreen:
         toLoad.pop()  # get rid of newline
 
         for key in world:
-            addBlock(AIR, key[0], key[1], key[2])
+            addBlock('air', key[0], key[1], key[2])
 
         world.clear()
 
         for key in toLoad:
             key = key.split(':')
             posTup = eval(key[0])
-            addBlock(int(key[1]), posTup[0], posTup[1], posTup[2])
+#            addBlock(int(key[1]), posTup[0], posTup[1], posTup[2])
+            addBlock('stone', posTup[0], posTup[1], posTup[2])
         f.close()
         self.loadText2['text'] = "Loaded!"
         print("Loaded!")
@@ -260,15 +263,13 @@ class PauseScreen:
 
 
 def addBlock(blockType, x, y, z):
-    global base
+    global base, world
 
-    try:
+    with suppress(KeyError, AttributeError):
         world[(x, y, z)].cleanup()
-    except Exception as ex:
-        print("\ncleanup: [%s]" % str(ex))
+
     block = Block(blockType, base, x, y, z)
     world[(x, y, z)] = block
-    return
 
 
 def build_world():
@@ -278,7 +279,7 @@ def build_world():
     for x in range(0, 16):
         for y in range(0, 16):
             amplitude = random.randrange(0.0, 5.0)
-            blockType = DIRT
+            blockType = 'dirt'
             if wantNewGeneration:
                 z = max(min(int(snoise2(x / freq, y / freq, octavesElev) + (
                     snoise2(x / freq, y / freq, octavesRough) *
@@ -291,15 +292,15 @@ def build_world():
                 for height in range(0, z + 1):
                     addBlock(blockType, x, y, height)
             if verboseLogging:
-                print("Generated %s at (%d, %d, %d)" % (blockNames[blockType], x, y, z))
+                print("Generated %s at (%d, %d, %d)" % (blockType, x, y, z))
 
-    alight = AmbientLight('alight')
-    alight.setColor(VBase4(0.6, 0.6, 0.6, 1))
+    alight = Core.AmbientLight('alight')
+    alight.setColor(Core.VBase4(0.6, 0.6, 0.6, 1))
     alnp = base.render.attachNewNode(alight)
     base.render.setLight(alnp)
-    slight = Spotlight('slight')
-    slight.setColor(VBase4(1, 1, 1, 1))
-    lens = PerspectiveLens()
+    slight = Core.Spotlight('slight')
+    slight.setColor(Core.VBase4(1, 1, 1, 1))
+    lens = Core.PerspectiveLens()
     slight.setLens(lens)
     slnp = base.render.attachNewNode(slight)
     slnp.setPos(8, -9, 128)
@@ -312,13 +313,13 @@ def build_world():
         # Enable the shader generator for the receiving nodes
         base.render.setShaderAuto()
 
-    traverser = CollisionTraverser()
-    handler = CollisionHandlerQueue()
+    traverser = Core.CollisionTraverser()
+    handler = Core.CollisionHandlerQueue()
 
-    pickerNode = CollisionNode('mouseRay')
+    pickerNode = Core.CollisionNode('mouseRay')
     pickerNP = base.camera.attachNewNode(pickerNode)
-    pickerNode.setFromCollideMask(GeomNode.getDefaultCollideMask())
-    pickerRay = CollisionRay()
+    pickerNode.setFromCollideMask(Core.GeomNode.getDefaultCollideMask())
+    pickerRay = Core.CollisionRay()
     pickerNode.addSolid(pickerRay)
     traverser.addCollider(pickerNP, handler)
 
@@ -356,12 +357,13 @@ def hotbarSelect(slot):
 
     global currentBlock, currentBlockText
 
-    currentBlock = inventory[slot - 1]
-    currentBlockText["text"] = blockNames[currentBlock]
+    next_block_name = [block_name for block_name, block_val in BLOCKS.items() if block_val['hotkey'] == slot][0]
+    currentBlock = next_block_name
+    currentBlockText["text"] = next_block_name
 
     if verboseLogging:
         print("Selected hotbar slot %d" % slot)
-        print("Current block: %s" % blockNames[currentBlock])
+        print("Current block: %s" % next_block_name)
 
 
 def setup_base_keys():
@@ -370,41 +372,35 @@ def setup_base_keys():
     base.accept('mouse1', handlePick)
     base.accept('mouse3', handlePick, extraArgs=[True])
     base.accept('escape', pause)
-    base.accept('1', hotbarSelect, extraArgs=[1])
-    base.accept('2', hotbarSelect, extraArgs=[2])
-    base.accept('3', hotbarSelect, extraArgs=[3])
-    base.accept('4', hotbarSelect, extraArgs=[4])
-    base.accept('5', hotbarSelect, extraArgs=[5])
-    base.accept('6', hotbarSelect, extraArgs=[6])
-    base.accept('7', hotbarSelect, extraArgs=[7])
-    base.accept('8', hotbarSelect, extraArgs=[8])
-    base.accept('9', hotbarSelect, extraArgs=[9])
+
+    for one_block in BLOCKS.values():
+        base.accept(str(one_block['hotkey']), hotbarSelect, extraArgs=[one_block['hotkey']])
 
 
 def handlePickedObject(obj):
     if verboseLogging:
-        print("Left clicked a block at %d, %d, %d" % (obj.getX(), obj.getY(), obj.getZ()))
+        print("Left clicked a block at [%d, %d, %d]" % (obj.getX(), obj.getY(), obj.getZ()))
 
-    addBlock(AIR, obj.getX(), obj.getY(), obj.getZ())
+    addBlock('air', obj.getX(), obj.getY(), obj.getZ())
 
 
 def handleRightPickedObject(obj, west, north, east, south, top, bot):
     if verboseLogging:
-        print("Right clicked a block at %d, %d, %d, attempting to place %s" % (
-            obj.getX(), obj.getY(), obj.getZ(), blockNames[currentBlock]))
+        print("Right clicked a block at [ %d, %d, %d], attempting to place [%s]" % (
+            obj.getX(), obj.getY(), obj.getZ(), currentBlock))
     try:
         # not [block face] checks to see if the user clicked on [block face]. this is not confusing at all.
-        if world[(obj.getX() - 1, obj.getY(), obj.getZ())].type == AIR and not west:
+        if world[(obj.getX() - 1, obj.getY(), obj.getZ())].type == 'air' and not west:
             addBlock(currentBlock, obj.getX() - 1, obj.getY(), obj.getZ())
-        elif world[(obj.getX() + 1, obj.getY(), obj.getZ())].type == AIR and not east:
+        elif world[(obj.getX() + 1, obj.getY(), obj.getZ())].type == 'air' and not east:
             addBlock(currentBlock, obj.getX() + 1, obj.getY(), obj.getZ())
-        elif world[(obj.getX(), obj.getY() - 1, obj.getZ())].type == AIR and not south:
+        elif world[(obj.getX(), obj.getY() - 1, obj.getZ())].type == 'air' and not south:
             addBlock(currentBlock, obj.getX(), obj.getY() - 1, obj.getZ())
-        elif world[(obj.getX(), obj.getY() + 1, obj.getZ())].type == AIR and not north:
+        elif world[(obj.getX(), obj.getY() + 1, obj.getZ())].type == 'air' and not north:
             addBlock(currentBlock, obj.getX(), obj.getY() + 1, obj.getZ())
-        elif world[(obj.getX(), obj.getY(), obj.getZ() + 1)].type == AIR and not top:
+        elif world[(obj.getX(), obj.getY(), obj.getZ() + 1)].type == 'air' and not top:
             addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ() + 1)
-        elif world[(obj.getX(), obj.getY(), obj.getZ() - 1)].type == AIR and not bot:
+        elif world[(obj.getX(), obj.getY(), obj.getZ() - 1)].type == 'air' and not bot:
             addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ() - 1)
     except KeyError:
         if not west:
@@ -425,7 +421,7 @@ def setup_fog():
 
     global currentBlockText, base
 
-    fog = Fog("fog")
+    fog = Core.Fog("fog")
     fog.setColor(0.5294, 0.8078, 0.9215)
     fog.setExpDensity(0.015)
     base.render.setFog(fog)
@@ -433,7 +429,7 @@ def setup_fog():
 
     base.setFrameRateMeter(True)
 
-    currentBlockText = DirectLabel(text=blockNames[currentBlock], text_fg=(1, 1, 1, 1),
+    currentBlockText = DirectLabel(text=currentBlock, text_fg=(1, 1, 1, 1),
                                    frameColor=(0, 0, 0, 0),
                                    parent=base.aspect2d, scale=0.05, pos=(0, 0, -0.95))
 

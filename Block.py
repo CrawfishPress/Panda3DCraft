@@ -1,19 +1,35 @@
 from direct.directnotify import DirectNotifyGlobal
 
-AIR = 0
-DIRT = 1
-COBBLESTONE = 2
-GLASS = 3
-GRASS = 4
-BRICKS = 5
-WOOD = 6
-LEAVES = 7
-PLANKS = 8
-STONE = 9
+BASE_TEXTURES = 'gfx/tex/'
 
-blockNames = ['Air', 'Dirt', 'Cobblestone', 'Glass', 'Grass', 'Bricks', 'Wood', 'Leaves', 'Planks', 'Stone']
-multiTexBlocks = [GRASS, WOOD]
-transparentBlocks = [GLASS, LEAVES]
+BLOCKS = {
+    'air': {'hotkey': 0, 'type': 'single', 'transparent': True,
+            'texture': None},
+    'bricks': {'hotkey': 5, 'type': 'single', 'transparent': False,
+               'texture': BASE_TEXTURES + 'bricks.png'},
+    'cobblestone': {'hotkey': 2, 'type': 'single', 'transparent': False,
+                    'texture': BASE_TEXTURES + 'cobblestone.png'},
+    'dirt': {'hotkey': 1, 'type': 'single', 'transparent': False,
+             'texture': BASE_TEXTURES + 'dirt.png'},
+    'glass': {'hotkey': 3, 'type': 'single', 'transparent': True,
+              'texture': BASE_TEXTURES + 'glass.png'},
+    'leaves': {'hotkey': 7, 'type': 'single', 'transparent': True,
+               'texture': BASE_TEXTURES + 'leaves.png'},
+    'planks': {'hotkey': 8, 'type': 'single', 'transparent': False,
+               'texture': BASE_TEXTURES + 'planks.png'},
+    'stone': {'hotkey': 9, 'type': 'single', 'transparent': False,
+              'texture': BASE_TEXTURES + 'stone.png'},
+    'grass': {'hotkey': 4, 'type': 'multi', 'transparent': False,
+              'texture_top': BASE_TEXTURES + 'grass_top.png',
+              'texture_sid': BASE_TEXTURES + 'grass_side.png',
+              'texture_bot': BASE_TEXTURES + 'grass_bot.png',
+              },
+    'wood': {'hotkey': 6, 'type': 'multi', 'transparent': False,
+             'texture_top': BASE_TEXTURES + 'wood_top.png',
+             'texture_sid': BASE_TEXTURES + 'wood_side.png',
+             'texture_bot': BASE_TEXTURES + 'wood_bot.png',
+             },
+}
 
 
 class Block:
@@ -22,7 +38,7 @@ class Block:
     def __init__(self, my_type, the_base, x, y, z):
         self.type = my_type
         self.the_base = the_base
-        if self.type == AIR:
+        if self.type == 'air':
             del self
             return
 
@@ -41,19 +57,19 @@ class Block:
         self.model.find('**/Top').setTag('topTag', '6')
         self.model.find('**/Bottom').setTag('botTag', '7')
 
-        if my_type in transparentBlocks:
+        if BLOCKS[my_type]['transparent']:
             self.model.setTransparency(1)
 
-        if my_type in multiTexBlocks:
-            topTexture = self.the_base.loader.loadTexture("gfx/tex/%s_top.png" % blockNames[my_type].lower())
-            sideTexture = self.the_base.loader.loadTexture("gfx/tex/%s_side.png" % blockNames[my_type].lower())
-            botTexture = self.the_base.loader.loadTexture("gfx/tex/%s_bot.png" % blockNames[my_type].lower())
+        if BLOCKS[my_type]['type'] == 'multi':
+            topTexture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_top'])
+            sideTexture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_bot'])
+            botTexture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_sid'])
             textureStage = self.model.findTextureStage('*')
             self.model.find('**/Top').setTexture(textureStage, topTexture, 1)
             self.model.find('**/Side').setTexture(textureStage, sideTexture, 1)
             self.model.find('**/Bottom').setTexture(textureStage, botTexture, 1)
         else:
-            texture = self.the_base.loader.loadTexture("gfx/tex/%s.png" % blockNames[my_type].lower())
+            texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture'])
             textureStage = self.model.findTextureStage('*')
             self.model.setTexture(textureStage, texture, 1)
 
