@@ -68,8 +68,10 @@ class BlockClass:
             self.model.setTexture(texture_stage, texture, 1)
 
     def cleanup(self):
+
         self.model.removeNode()
         del self
 
     def __repr__(self):
+
         return f"{self.type}: ({self.x}, {self.y}, {self.z})"

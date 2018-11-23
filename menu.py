@@ -129,17 +129,20 @@ class PauseScreen:
         self.hide()
 
     def show_pause(self):
+
         self.saveScr.stash()
         self.loadScr.stash()
         self.pauseScr.unstash()
         self.dim.unstash()
 
     def show_save(self):
+
         self.pauseScr.stash()
         self.saveScr.unstash()
         self.saveText2['text'] = ""
 
     def show_load(self):
+
         self.pauseScr.stash()
         self.loadScr.unstash()
         self.loadText2['text'] = ""
@@ -170,7 +173,7 @@ class PauseScreen:
         if not world_name:
             world_name = self.saveName.get(True)
         print(f"Saving [{world_name}]...")
-        dest = f"'saves/{world_name}.sav"
+        dest = f"saves/{world_name}.sav"
         dest_dir = os.path.dirname(dest)
         if not os.path.exists(dest_dir):
             os.makedirs(dest_dir)
@@ -199,19 +202,20 @@ class PauseScreen:
         to_load.pop()  # get rid of newline
 
         for key in self.world:
-            self.addBlock_func('air', key[0], key[1], key[2])
+            self.addBlock_func('air', key[0], key[1], key[2], self.world, self.base)
 
         self.world.clear()
 
         for key in to_load:
             key = key.split(':')
             pos_tup = eval(key[0])
-            self.addBlock_func(key[1], pos_tup[0], pos_tup[1], pos_tup[2])
+            self.addBlock_func(key[1], pos_tup[0], pos_tup[1], pos_tup[2], self.world, self.base)
         f.close()
         self.loadText2['text'] = "Loaded!"
         print("Loaded!")
 
     def hide(self):
+
         self.pauseScr.stash()
         self.loadScr.stash()
         self.saveScr.stash()
