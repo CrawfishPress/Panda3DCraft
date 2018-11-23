@@ -37,15 +37,13 @@ class Block:
 
     def __init__(self, my_type, the_base, x, y, z):
         self.type = my_type
-        self.the_base = the_base
-        if self.type == 'air':
+        self.x, self.y, self.z = x, y, z
+
+        if my_type == 'air':
             del self
             return
 
-        self.x = x
-        self.y = y
-        self.z = z
-
+        self.the_base = the_base
         self.model = self.the_base.loader.loadModel("gfx/block")
         self.model.reparentTo(self.the_base.render)
         self.model.setPos(x, y, z)
@@ -76,3 +74,6 @@ class Block:
     def cleanup(self):
         self.model.removeNode()
         del self
+
+    def __repr__(self):
+        return "%s: (%s, %s, %s)" % (self.type, self.x, self.y, self.z)

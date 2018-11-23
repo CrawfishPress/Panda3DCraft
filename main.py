@@ -203,8 +203,10 @@ class PauseScreen:
                                    self.buttonModel.find('**/button_press'),
                                    self.buttonModel.find('**/button_over'),
                                    self.buttonModel.find('**/button_disabled')),
-                             relief=None, scale=0.5, pos=(0, 0, -0.75), text=one_file.strip('.sav'), text_fg=(1, 1, 1, 1),
-                             text_scale=0.1, text_pos=(0, -0.04), command=self.load, extraArgs=[one_file])
+                             relief=None, scale=0.5, pos=(0, 0, -0.75),
+                             text=one_file.strip('.sav'), text_fg=(1, 1, 1, 1),
+                             text_scale=0.1, text_pos=(0, -0.04), command=self.load,
+                             extraArgs=[one_file])
             self.loadList.addItem(l)
 
     def save(self, worldName=None):
@@ -324,33 +326,33 @@ def build_world():
     traverser.addCollider(pickerNP, handler)
 
 
-def handlePick(right=False):
+def handlePick(right_click=False):
 
     global pickerRay, traverser, handler, paused
 
     if paused:
         return
 
-    if base.mouseWatcherNode.hasMouse():
-        mpos = base.mouseWatcherNode.getMouse()
-        pickerRay.setFromLens(base.camNode, mpos.getX(), mpos.getY())
+    if not base.mouseWatcherNode.hasMouse():
+        return
 
-        traverser.traverse(base.render)
-        if handler.getNumEntries() > 0:
-            handler.sortEntries()
-            pickedObj = handler.getEntry(0).getIntoNodePath()
-            pickedObj = pickedObj.findNetTag('blockTag')
-            if not pickedObj.isEmpty():
-                if right:
-                    handleRightPickedObject(pickedObj,
-                                            handler.getEntry(0).getIntoNodePath().findNetTag('westTag').isEmpty(),
-                                            handler.getEntry(0).getIntoNodePath().findNetTag('northTag').isEmpty(),
-                                            handler.getEntry(0).getIntoNodePath().findNetTag('eastTag').isEmpty(),
-                                            handler.getEntry(0).getIntoNodePath().findNetTag('southTag').isEmpty(),
-                                            handler.getEntry(0).getIntoNodePath().findNetTag('topTag').isEmpty(),
-                                            handler.getEntry(0).getIntoNodePath().findNetTag('botTag').isEmpty())
-                else:
-                    handlePickedObject(pickedObj)
+    mpos = base.mouseWatcherNode.getMouse()
+    pickerRay.setFromLens(base.camNode, mpos.getX(), mpos.getY())
+
+    traverser.traverse(base.render)
+    if handler.getNumEntries() <= 0:
+        return
+
+    handler.sortEntries()
+    pickedObj = handler.getEntry(0).getIntoNodePath()
+    pickedObj = pickedObj.findNetTag('blockTag')
+    if pickedObj.isEmpty():
+        return
+
+    if right_click:
+        addBlockObject(pickedObj, handler.getEntry(0).getIntoNodePath())
+    else:
+        removeBlockObject(pickedObj)
 
 
 def hotbarSelect(slot):
@@ -377,44 +379,48 @@ def setup_base_keys():
         base.accept(str(one_block['hotkey']), hotbarSelect, extraArgs=[one_block['hotkey']])
 
 
-def handlePickedObject(obj):
+def removeBlockObject(obj):
+
     if verboseLogging:
         print("Left clicked a block at [%d, %d, %d]" % (obj.getX(), obj.getY(), obj.getZ()))
 
     addBlock('air', obj.getX(), obj.getY(), obj.getZ())
 
 
-def handleRightPickedObject(obj, west, north, east, south, top, bot):
+def addBlockObject(obj, node_path):
+
     if verboseLogging:
-        print("Right clicked a block at [ %d, %d, %d], attempting to place [%s]" % (
+        print("Right clicked a block at [%d, %d, %d], attempting to place [%s]" % (
             obj.getX(), obj.getY(), obj.getZ(), currentBlock))
-    try:
-        # not [block face] checks to see if the user clicked on [block face]. this is not confusing at all.
-        if world[(obj.getX() - 1, obj.getY(), obj.getZ())].type == 'air' and not west:
-            addBlock(currentBlock, obj.getX() - 1, obj.getY(), obj.getZ())
-        elif world[(obj.getX() + 1, obj.getY(), obj.getZ())].type == 'air' and not east:
-            addBlock(currentBlock, obj.getX() + 1, obj.getY(), obj.getZ())
-        elif world[(obj.getX(), obj.getY() - 1, obj.getZ())].type == 'air' and not south:
-            addBlock(currentBlock, obj.getX(), obj.getY() - 1, obj.getZ())
-        elif world[(obj.getX(), obj.getY() + 1, obj.getZ())].type == 'air' and not north:
-            addBlock(currentBlock, obj.getX(), obj.getY() + 1, obj.getZ())
-        elif world[(obj.getX(), obj.getY(), obj.getZ() + 1)].type == 'air' and not top:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ() + 1)
-        elif world[(obj.getX(), obj.getY(), obj.getZ() - 1)].type == 'air' and not bot:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ() - 1)
-    except KeyError:
-        if not west:
-            addBlock(currentBlock, obj.getX() - 1, obj.getY(), obj.getZ())
-        elif not east:
-            addBlock(currentBlock, obj.getX() + 1, obj.getY(), obj.getZ())
-        elif not south:
-            addBlock(currentBlock, obj.getX(), obj.getY() - 1, obj.getZ())
-        elif not north:
-            addBlock(currentBlock, obj.getX(), obj.getY() + 1, obj.getZ())
-        elif not top:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ() + 1)
-        elif not bot:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ() - 1)
+
+    moves = {
+        'west': {'delta_x': -1, 'delta_y': 0, 'delta_z': 0,
+                 'clicked': not node_path.findNetTag('westTag').isEmpty()},
+        'east': {'delta_x': 1, 'delta_y': 0, 'delta_z': 0,
+                 'clicked': not node_path.findNetTag('eastTag').isEmpty()},
+        'south': {'delta_x': 0, 'delta_y': -1, 'delta_z': 0,
+                  'clicked': not node_path.findNetTag('southTag').isEmpty()},
+        'north': {'delta_x': 0, 'delta_y': 1, 'delta_z': 0,
+                  'clicked': not node_path.findNetTag('northTag').isEmpty()},
+        'top': {'delta_x': 0, 'delta_y': 0, 'delta_z': 1,
+                'clicked': not node_path.findNetTag('topTag').isEmpty()},
+        'bot': {'delta_x': 0, 'delta_y': 0, 'delta_z': -1,
+                'clicked': not node_path.findNetTag('botTag').isEmpty()},
+        }
+
+    blocks_clicked = [one_block for one_block in moves.values() if one_block['clicked']]
+    if __debug__:
+        assert len(blocks_clicked) == 1
+    new_block = blocks_clicked[0]
+
+    # Find coords of "new" block
+    obj_x, obj_y, obj_z = obj.getX(), obj.getY(), obj.getZ()
+    delta_x, delta_y, delta_z = new_block['delta_x'], new_block['delta_y'], new_block['delta_z']
+    new_coords = (obj_x + delta_x, obj_y + delta_y, obj_z + delta_z)
+
+    # Is the block next to clicked-block, available to be created?
+    if new_coords not in world or world[new_coords].type == 'air':
+        addBlock(currentBlock, *new_coords)
 
 
 def setup_fog():
