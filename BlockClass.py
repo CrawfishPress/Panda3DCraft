@@ -55,21 +55,21 @@ class BlockClass:
             self.model.setTransparency(1)
 
         if BLOCKS[my_type]['type'] == 'multi':
-            topTexture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_top'])
-            sideTexture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_bot'])
-            botTexture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_sid'])
-            textureStage = self.model.findTextureStage('*')
-            self.model.find('**/Top').setTexture(textureStage, topTexture, 1)
-            self.model.find('**/Side').setTexture(textureStage, sideTexture, 1)
-            self.model.find('**/Bottom').setTexture(textureStage, botTexture, 1)
+            top_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_top'])
+            side_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_bot'])
+            bot_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_sid'])
+            texture_stage = self.model.findTextureStage('*')
+            self.model.find('**/Top').setTexture(texture_stage, top_texture, 1)
+            self.model.find('**/Side').setTexture(texture_stage, side_texture, 1)
+            self.model.find('**/Bottom').setTexture(texture_stage, bot_texture, 1)
         else:
             texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture'])
-            textureStage = self.model.findTextureStage('*')
-            self.model.setTexture(textureStage, texture, 1)
+            texture_stage = self.model.findTextureStage('*')
+            self.model.setTexture(texture_stage, texture, 1)
 
     def cleanup(self):
         self.model.removeNode()
         del self
 
     def __repr__(self):
-        return "%s: (%s, %s, %s)" % (self.type, self.x, self.y, self.z)
+        return f"{self.type}: ({self.x}, {self.y}, {self.z})"

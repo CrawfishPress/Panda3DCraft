@@ -13,7 +13,7 @@ from menu import setup_pause_menu, is_paused, pause
 Core.loadPrcFile('config/general.prc')
 
 if __debug__:  # True unless Python is started with -O
-    print("debug-mode on")
+    print(f"debug-mode on")
     Core.loadPrcFile('config/dev.prc')
 
 verboseLogging = True
@@ -32,7 +32,7 @@ MY_BASE = ShowBase()
 
 def setup_lighting():
     global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE
-    fancyRendering = False
+    fancy_rendering = False
 
     alight = Core.AmbientLight('alight')
     alight.setColor(Core.VBase4(0.6, 0.6, 0.6, 1))
@@ -47,7 +47,7 @@ def setup_lighting():
     slnp.setHpr(0, 270, 0)
     MY_BASE.render.setLight(slnp)
 
-    if fancyRendering:
+    if fancy_rendering:
         # Use a 512x512 resolution shadow map
         slight.setShadowCaster(True, 512, 512)
         # Enable the shader generator for the receiving nodes
@@ -56,55 +56,55 @@ def setup_lighting():
     TRAVERSER = Core.CollisionTraverser()
     COLLISION_HANDLER = Core.CollisionHandlerQueue()
 
-    pickerNode = Core.CollisionNode('mouseRay')
-    pickerNP = MY_BASE.camera.attachNewNode(pickerNode)
-    pickerNode.setFromCollideMask(Core.GeomNode.getDefaultCollideMask())
+    picker_node = Core.CollisionNode('mouseRay')
+    picker_np = MY_BASE.camera.attachNewNode(picker_node)
+    picker_node.setFromCollideMask(Core.GeomNode.getDefaultCollideMask())
     PICKER_RAY = Core.CollisionRay()
-    pickerNode.addSolid(PICKER_RAY)
-    TRAVERSER.addCollider(pickerNP, COLLISION_HANDLER)
+    picker_node.addSolid(PICKER_RAY)
+    TRAVERSER.addCollider(picker_np, COLLISION_HANDLER)
 
 
 def write_ground_blocks():
 
-    blockType = CURRENT_BLOCK
+    block_type = CURRENT_BLOCK
 
-    wantNewGeneration = False
-    fillWorld = False
+    want_new_generation = False
+    fill_world = False
 
-    octavesElev = 5
-    octavesRough = 2
-    octavesDetail = 1
-    freq = 16.0 * octavesElev
+    octaves_elev = 5
+    octaves_rough = 2
+    octaves_detail = 1
+    freq = 16.0 * octaves_elev
 
     for x in range(0, 16):
         for y in range(0, 16):
             amplitude = random.randrange(0.0, 5.0)
-            if wantNewGeneration:
-                z = max(min(int(snoise2(x / freq, y / freq, octavesElev) + (
-                    snoise2(x / freq, y / freq, octavesRough) *
-                    snoise2(x / freq, y / freq, octavesDetail)) * 64 + 64), 128), 0)
-                addBlock(blockType, x, y, z)
+            if want_new_generation:
+                z = max(min(int(snoise2(x / freq, y / freq, octaves_elev) + (
+                    snoise2(x / freq, y / freq, octaves_rough) *
+                    snoise2(x / freq, y / freq, octaves_detail)) * 64 + 64), 128), 0)
+                add_block(block_type, x, y, z)
             else:
                 z = max((int(snoise2(x / freq, y / freq, 5) * amplitude) + 8), 0)
-                addBlock(blockType, x, y, z)
-            if fillWorld:
+                add_block(block_type, x, y, z)
+            if fill_world:
                 for height in range(0, z + 1):
-                    addBlock(blockType, x, y, height)
+                    add_block(block_type, x, y, height)
 
             if verboseLogging:
-                print("Generated %s at (%d, %d, %d)" % (blockType, x, y, z))
+                print(f"Generated [{block_type}]: [{x}, {y}, {z}]")
 
 
-def addBlock(blockType, x, y, z):
+def add_block(block_type, x, y, z):
     global MY_BASE, MY_WORLD
 
     with suppress(KeyError, AttributeError):
         MY_WORLD[(x, y, z)].cleanup()
 
-    MY_WORLD[(x, y, z)] = BlockClass(blockType, MY_BASE, x, y, z)
+    MY_WORLD[(x, y, z)] = BlockClass(block_type, MY_BASE, x, y, z)
 
 
-def handlePick(right_click=False):
+def handle_pick(right_click=False):
 
     global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD
 
@@ -122,18 +122,18 @@ def handlePick(right_click=False):
         return
 
     COLLISION_HANDLER.sortEntries()
-    pickedObj = COLLISION_HANDLER.getEntry(0).getIntoNodePath()
-    pickedObj = pickedObj.findNetTag('blockTag')
-    if pickedObj.isEmpty():
+    picked_obj = COLLISION_HANDLER.getEntry(0).getIntoNodePath()
+    picked_obj = picked_obj.findNetTag('blockTag')
+    if picked_obj.isEmpty():
         return
 
     if right_click:
-        addBlockObject(pickedObj, COLLISION_HANDLER.getEntry(0).getIntoNodePath())
+        add_block_object(picked_obj, COLLISION_HANDLER.getEntry(0).getIntoNodePath())
     else:
-        removeBlockObject(pickedObj)
+        remove_block_object(picked_obj)
 
 
-def hotbarSelect(slot):
+def hotbar_select(slot):
 
     global CURRENT_BLOCK, CUR_BLOCK_TEXT
 
@@ -143,35 +143,35 @@ def hotbarSelect(slot):
     CUR_BLOCK_TEXT["text"] = next_block_name
 
     if verboseLogging:
-        print("Selected hotbar slot %d" % slot)
-        print("Current block: %s" % next_block_name)
+        print(f"Selected hotbar slot {slot}")
+        print(f"Current block: {next_block_name}")
 
 
 def setup_base_keys():
     global MY_BASE
 
-    MY_BASE.accept('mouse1', handlePick)
-    MY_BASE.accept('mouse3', handlePick, extraArgs=[True])
+    MY_BASE.accept('mouse1', handle_pick)
+    MY_BASE.accept('mouse3', handle_pick, extraArgs=[True])
     MY_BASE.accept('escape', pause)
 
     for one_block in BLOCKS.values():
-        MY_BASE.accept(str(one_block['hotkey']), hotbarSelect, extraArgs=[one_block['hotkey']])
+        MY_BASE.accept(str(one_block['hotkey']), hotbar_select, extraArgs=[one_block['hotkey']])
 
 
-def removeBlockObject(obj):
+def remove_block_object(obj):
 
     if verboseLogging:
-        print("Left clicked a block at [%d, %d, %d]" % (obj.getX(), obj.getY(), obj.getZ()))
+        print(f"Left clicked a block at [{obj.getX()}, {obj.getY()}, {obj.getZ()}]")
 
     # We have to add the Block in order to destroy it...
-    addBlock('air', obj.getX(), obj.getY(), obj.getZ())
+    add_block('air', obj.getX(), obj.getY(), obj.getZ())
 
 
-def addBlockObject(obj, node_path):
+def add_block_object(obj, node_path):
 
     if verboseLogging:
-        print("Right clicked a block at [%d, %d, %d], attempting to place [%s]" % (
-            obj.getX(), obj.getY(), obj.getZ(), CURRENT_BLOCK))
+        print(f"Right clicked a block at [{obj.getX()}, {obj.getY()}, {obj.getZ()}],"
+              f" attempting to place [{CURRENT_BLOCK}]")
 
     moves = {
         'west': {'delta_x': -1, 'delta_y': 0, 'delta_z': 0,
@@ -200,7 +200,7 @@ def addBlockObject(obj, node_path):
 
     # Is the block next to clicked-block, available to be created?
     if new_coords not in MY_WORLD or MY_WORLD[new_coords].type == 'air':
-        addBlock(CURRENT_BLOCK, *new_coords)
+        add_block(CURRENT_BLOCK, *new_coords)
 
 
 def setup_fog():
@@ -228,7 +228,7 @@ def run_the_world():
     write_ground_blocks()
     setup_base_keys()
     setup_fog()
-    setup_pause_menu(MY_BASE, MY_WORLD, addBlock)
+    setup_pause_menu(MY_BASE, MY_WORLD, add_block)
 
     MY_BASE.run()
 
