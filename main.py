@@ -8,7 +8,7 @@ from direct.showbase.ShowBase import ShowBase
 from noise import snoise2
 
 from BlockClass import BLOCKS, BlockClass
-from menu import setup_pause_menu, is_paused, pause
+from menu import PauseScreen
 
 Core.loadPrcFile('config/general.prc')
 
@@ -106,9 +106,9 @@ def add_block(block_type, x, y, z):
 
 def handle_pick(right_click=False):
 
-    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD
+    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD, PAUSE_MENU
 
-    if is_paused():
+    if PAUSE_MENU.is_paused:
         return
 
     if not MY_BASE.mouseWatcherNode.hasMouse():
@@ -152,7 +152,7 @@ def setup_base_keys():
 
     MY_BASE.accept('mouse1', handle_pick)
     MY_BASE.accept('mouse3', handle_pick, extraArgs=[True])
-    MY_BASE.accept('escape', pause)
+    MY_BASE.accept('escape', PAUSE_MENU.pause)
 
     for one_block in BLOCKS.values():
         MY_BASE.accept(str(one_block['hotkey']), hotbar_select, extraArgs=[one_block['hotkey']])
@@ -221,14 +221,14 @@ def setup_fog():
 
 
 def run_the_world():
-    global MY_BASE, MY_WORLD
-    print("working")
+    global MY_BASE, MY_WORLD, PAUSE_MENU
+    print("building world...")
 
+    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD, add_block)
     setup_lighting()
     write_ground_blocks()
     setup_base_keys()
     setup_fog()
-    setup_pause_menu(MY_BASE, MY_WORLD, add_block)
 
     MY_BASE.run()
 

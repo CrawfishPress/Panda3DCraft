@@ -4,33 +4,6 @@ from panda3d.core import *
 import panda3d.core as Core
 from direct.gui.DirectGui import *
 
-PAUSE_MENU = None
-
-
-def setup_pause_menu(base, world, add_block_func):
-    global PAUSE_MENU
-
-    PAUSE_MENU = PauseScreen(base, world, add_block_func)
-
-
-def is_paused():
-    global PAUSE_MENU
-
-    return PAUSE_MENU.is_paused
-
-
-def pause():
-    global PAUSE_MENU
-
-    PAUSE_MENU.is_paused = not PAUSE_MENU.is_paused
-
-    if PAUSE_MENU.is_paused:
-        PAUSE_MENU.base.disableMouse()
-        PAUSE_MENU.show_pause()
-    else:
-        PAUSE_MENU.base.enableMouse()
-        PAUSE_MENU.hide()
-
 
 class PauseScreen:
     def __init__(self, base, world, add_block_func):
@@ -58,7 +31,7 @@ class PauseScreen:
             self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
                                   relief=None, parent=self.pauseScr, scale=0.5, pos=(0, 0, 0.3),
                                   text="Resume Game", text_fg=(1, 1, 1, 1), text_scale=0.1, text_pos=(0, -0.04),
-                                  command=pause)
+                                  command=self.pause)
         self.saveButton = DirectButton(geom=(
             self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'),
             self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
@@ -244,4 +217,13 @@ class PauseScreen:
         self.saveScr.stash()
         self.dim.stash()
 
+    def pause(self):
 
+        self.is_paused = not self.is_paused
+
+        if self.is_paused:
+            self.base.disableMouse()
+            self.show_pause()
+        else:
+            self.base.enableMouse()
+            self.hide()
