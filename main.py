@@ -38,36 +38,8 @@ world = {}
 base = ShowBase()
 
 
-def addBlock(blockType, x, y, z):
-    global base, world
-
-    with suppress(KeyError, AttributeError):
-        world[(x, y, z)].cleanup()
-
-    block = Block(blockType, base, x, y, z)
-    world[(x, y, z)] = block
-
-
-def build_world():
+def setup_lighting():
     global pickerRay, traverser, handler, base
-
-    for x in range(0, 16):
-        for y in range(0, 16):
-            amplitude = random.randrange(0.0, 5.0)
-            blockType = 'dirt'
-            if wantNewGeneration:
-                z = max(min(int(snoise2(x / freq, y / freq, octavesElev) + (
-                    snoise2(x / freq, y / freq, octavesRough) *
-                        snoise2(x / freq, y / freq, octavesDetail)) * 64 + 64), 128), 0)
-                addBlock(blockType, x, y, z)
-            else:
-                z = max((int(snoise2(x / freq, y / freq, 5) * amplitude) + 8), 0)
-                addBlock(blockType, x, y, z)
-            if fillWorld:
-                for height in range(0, z + 1):
-                    addBlock(blockType, x, y, height)
-            if verboseLogging:
-                print("Generated %s at (%d, %d, %d)" % (blockType, x, y, z))
 
     alight = Core.AmbientLight('alight')
     alight.setColor(Core.VBase4(0.6, 0.6, 0.6, 1))
@@ -97,6 +69,38 @@ def build_world():
     pickerRay = Core.CollisionRay()
     pickerNode.addSolid(pickerRay)
     traverser.addCollider(pickerNP, handler)
+
+
+def write_ground_blocks():
+
+    blockType = currentBlock
+
+    for x in range(0, 16):
+        for y in range(0, 16):
+            amplitude = random.randrange(0.0, 5.0)
+            if wantNewGeneration:
+                z = max(min(int(snoise2(x / freq, y / freq, octavesElev) + (
+                    snoise2(x / freq, y / freq, octavesRough) *
+                    snoise2(x / freq, y / freq, octavesDetail)) * 64 + 64), 128), 0)
+                addBlock(blockType, x, y, z)
+            else:
+                z = max((int(snoise2(x / freq, y / freq, 5) * amplitude) + 8), 0)
+                addBlock(blockType, x, y, z)
+            if fillWorld:
+                for height in range(0, z + 1):
+                    addBlock(blockType, x, y, height)
+
+            if verboseLogging:
+                print("Generated %s at (%d, %d, %d)" % (blockType, x, y, z))
+
+
+def addBlock(blockType, x, y, z):
+    global base, world
+
+    with suppress(KeyError, AttributeError):
+        world[(x, y, z)].cleanup()
+
+    world[(x, y, z)] = Block(blockType, base, x, y, z)
 
 
 def handlePick(right_click=False):
@@ -132,7 +136,8 @@ def hotbarSelect(slot):
 
     global currentBlock, currentBlockText
 
-    next_block_name = [block_name for block_name, block_val in BLOCKS.items() if block_val['hotkey'] == slot][0]
+    next_block_name = [block_name for block_name, block_val in BLOCKS.items()
+                       if block_val['hotkey'] == slot][0]
     currentBlock = next_block_name
     currentBlockText["text"] = next_block_name
 
@@ -218,10 +223,12 @@ def run_the_world():
     global base, world
     print("working")
 
-    build_world()
+    setup_lighting()
+    write_ground_blocks()
     setup_base_keys()
     setup_fog()
     setup_pause_menu(base, world, addBlock)
+
     base.run()
 
 

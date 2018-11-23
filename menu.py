@@ -1,7 +1,8 @@
+import os
+
 from panda3d.core import *
 import panda3d.core as Core
 from direct.gui.DirectGui import *
-import os
 
 PAUSE_MENU = None
 
@@ -232,9 +233,7 @@ class PauseScreen:
         for key in toLoad:
             key = key.split(':')
             posTup = eval(key[0])
-            # TODO: fix this, just a kludge to get rest of game working
-#            addBlock(int(key[1]), posTup[0], posTup[1], posTup[2])
-            self.addBlock_func('stone', posTup[0], posTup[1], posTup[2])
+            self.addBlock_func(key[1], posTup[0], posTup[1], posTup[2])
         f.close()
         self.loadText2['text'] = "Loaded!"
         print("Loaded!")
