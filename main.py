@@ -1,20 +1,17 @@
-from contextlib import suppress
-import random
 import sys
 
 from panda3d.core import *
 import panda3d.core as Core
 from direct.gui.DirectGui import *
 from direct.showbase.ShowBase import ShowBase
-import direct.showbase.ShowBaseGlobal as BG
 
 # noinspection PyUnresolvedReferences
 from panda3d.core import WindowProperties
 
-from noise import snoise2
-
-from BlockClass import BLOCKS, BlockClass
-from menu import PauseScreen
+from src.BlockClass import BLOCKS
+from src.World import write_ground_blocks, add_block
+from src.Camera import setup_camera, rotate_camera
+from src.menu import PauseScreen
 
 Core.loadPrcFile('config/general.prc')
 
@@ -35,7 +32,7 @@ CUR_BLOCK_TEXT = None
 MOUSE_ACTIVE = False
 
 MY_WORLD = {}
-MY_BASE = ShowBase()
+MY_BASE = None
 CAMERA_START_COORDS = (-10, -10, 30)
 
 
@@ -74,50 +71,28 @@ def setup_lighting(the_base):
     TRAVERSER.addCollider(picker_np, COLLISION_HANDLER)
 
 
-def write_ground_blocks(block_type, the_base):
-
-    the_world = {}
-    want_new_generation = False
-    fill_world = False
-
-    octaves_elev = 5
-    octaves_rough = 2
-    octaves_detail = 1
-    freq = 16.0 * octaves_elev
-
-    for x in range(0, 16):
-        for y in range(0, 16):
-            amplitude = random.randrange(0.0, 5.0)
-            if want_new_generation:
-                z = max(min(int(snoise2(x / freq, y / freq, octaves_elev) + (
-                    snoise2(x / freq, y / freq, octaves_rough) *
-                    snoise2(x / freq, y / freq, octaves_detail)) * 64 + 64), 128), 0)
-                add_block(block_type, x, y, z, the_world, the_base)
-            else:
-                z = max((int(snoise2(x / freq, y / freq, 5) * amplitude) + 8), 0)
-                add_block(block_type, x, y, z, the_world, the_base)
-            if fill_world:
-                for height in range(0, z + 1):
-                    add_block(block_type, x, y, height, the_world, the_base)
-
-            if verboseLogging:
-                print(f"Generated [{block_type}]: [{x}, {y}, {z}]")
-
-    return the_world
-
-
-def add_block(block_type, x, y, z, the_world, the_base):
-
-    with suppress(KeyError, AttributeError):
-        the_world[(x, y, z)].cleanup()
-
-    the_world[(x, y, z)] = BlockClass(block_type, the_base, x, y, z)
-
-
 def setup_tasks():
-    global MY_BASE
+    global MY_BASE, MOUSE_ACTIVE
 
-    MY_BASE.taskMgr.add(rotate_camera, "Moving_Object", appendTask=True)
+    MY_BASE.taskMgr.add(camera_rotator, "Moving_Object", appendTask=True)
+
+
+def camera_rotator(task):
+    """ This is somewhat kludgy - originally I had the taskMgr directly call rotate_camera(),
+        and passing it the parameters. But it turns out that the parameters don't *change*
+        (of course), and I needed MOUSE_ACTIVE to be updated.
+    :param task:
+    :return:
+    """
+    global MY_BASE, MOUSE_ACTIVE
+
+    m_node = MY_BASE.mouseWatcherNode
+
+    if MOUSE_ACTIVE or not m_node.hasMouse():
+        return task.cont
+
+    rotate_camera(MY_BASE)
+    return task.cont
 
 
 def handle_click(right_click=False):
@@ -207,14 +182,14 @@ def reset_stuff(key, value):
     MY_BASE.camera.setPos(CAMERA_START_COORDS)
     foo = MY_WORLD[(0, 0, 8)].model  # Be aware this block can be *deleted*
     x, y, z = foo.getX(), foo.getY(), foo.getZ()
-    print("foo.xyz = %s, %s, %s" % (x, y, z))
+    print("reset.block[0,0,8].xyz = %s, %s, %s" % (x, y, z))
     MY_BASE.camera.setHpr(0, -37, 0)
     MY_BASE.camera.lookAt(foo)
     x, y, z = MY_BASE.camera.getX(), MY_BASE.camera.getY(), MY_BASE.camera.getZ()
     h, p, r = MY_BASE.camera.getR(), MY_BASE.camera.getP(), MY_BASE.camera.getR()
     print(f"camera.rs = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
 
-#    MY_BASE.win.movePointer(0, int(MY_BASE.win.getXSize() / 2), int(MY_BASE.win.getYSize() / 2))
+    # MY_BASE.win.movePointer(0, int(MY_BASE.win.getXSize() / 2), int(MY_BASE.win.getYSize() / 2))
 
 
 def toggle_mouse(key, value):
@@ -234,53 +209,14 @@ def toggle_mouse(key, value):
     props = WindowProperties()
     if MOUSE_ACTIVE:
         print("Mouse now ON")
-        props.setCursorHidden(False)
+#        props.setCursorHidden(False)
         props.setMouseMode(WindowProperties.M_absolute)
     else:
         print("Mouse now OFF")
-        props.setCursorHidden(True)
+#        props.setCursorHidden(True)
         props.setMouseMode(WindowProperties.M_relative)
 
     MY_BASE.win.requestProperties(props)
-
-
-def rotate_camera(task):
-    """ Mouse returns a set of X/Y coordinates, with 0/0 in the center of the screen.
-        Convert X into an H-rotation, and Y into a P-rotation.
-        Only if Mouse is in Relative-mode.
-    """
-    global MOUSE_ACTIVE, MY_BASE
-    rotation_scale = 100
-
-    my_cam = MY_BASE.camera
-    m_node = MY_BASE.mouseWatcherNode
-
-    if MOUSE_ACTIVE or not m_node.hasMouse():
-        return task.cont
-
-    x = m_node.getMouseX() * MY_BASE.win.getXSize()
-    y = m_node.getMouseY() * MY_BASE.win.getYSize()
-
-    move_dir_H = get_abs_value(x, 2)
-    move_dir_P = get_abs_value(y, 2)
-
-    dt = BG.globalClock.getDt()
-    old_H = my_cam.getH()
-    old_P = my_cam.getP()
-
-    new_H = old_H + move_dir_H * dt * rotation_scale
-    new_H = lock_to_zero(new_H)
-    my_cam.setH(new_H)
-
-    new_P = old_P + move_dir_P * dt * rotation_scale
-    new_P = lock_to_zero(new_P)  # This didn't work as expected...
-    my_cam.setP(new_P)
-
-    # print(f"rotate_camera.camera: [{x}, {y}, -]. [h: {old_H:3.1f} -> {old_H:3.1f}, dt = {dt:3.1f}]")
-
-    MY_BASE.win.movePointer(0, int(MY_BASE.win.getXSize() / 2), int(MY_BASE.win.getYSize() / 2))
-
-    return task.cont
 
 
 def remove_block_object(obj, the_world, the_base):
@@ -345,46 +281,12 @@ def setup_fog(the_base, cur_block):
                                  parent=the_base.aspect2d, scale=0.05, pos=(0, 0, -0.95))
 
 
-def setup_camera(the_base):
-
-    global MY_WORLD, CAMERA_START_COORDS
-
-    the_base.camLens.setFar(256)
-    the_base.camera.setPos(CAMERA_START_COORDS)
-    the_base.camera.setHpr(0, -37, 0)
-    foo = MY_WORLD[(0, 0, 8)].model
-    the_base.camera.lookAt(foo)
-    x, y, z = the_base.camera.getX(), the_base.camera.getY(), the_base.camera.getZ()
-    h, p, r = the_base.camera.getR(), the_base.camera.getP(), the_base.camera.getR()
-    print(f"setup_camera.camera = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
-
-
-def get_abs_value(test_val, epsilon):
-
-    new_val = 0
-
-    if test_val > epsilon:
-        new_val = -1
-
-    if test_val < -epsilon:
-        new_val = 1
-
-    return new_val
-
-
-def lock_to_zero(test_val, lock_angle=360):
-
-    if test_val > lock_angle or test_val < -lock_angle:
-        return 0
-
-    return test_val
-
-
 def run_the_world():
 
     global MY_BASE, MY_WORLD, PAUSE_MENU
     print("building world...")
 
+    MY_BASE = ShowBase()
     MY_WORLD = write_ground_blocks(CURRENT_BLOCK, MY_BASE)
     PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD, add_block)
 
@@ -393,7 +295,7 @@ def run_the_world():
 
     setup_base_keys()
     setup_fog(MY_BASE, CURRENT_BLOCK)
-    setup_camera(MY_BASE)
+    setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
     setup_tasks()
 
     MY_BASE.run()
