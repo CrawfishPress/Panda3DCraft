@@ -5,7 +5,7 @@ from noise import snoise2
 
 from src.BlockClass import BlockClass
 
-verboseLogging = True
+verboseLogging = False
 
 
 def write_ground_blocks(block_type, the_base):

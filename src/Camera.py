@@ -1,4 +1,38 @@
+from math import cos, sin, radians
 import direct.showbase.ShowBaseGlobal as BG
+from src.Keys import TRANSLATE_DATA
+
+
+def move_camera(the_base, the_keys_hit):
+
+    rotate_camera(the_base)
+
+    some_keys_hit = [key_name for key_name, key_val in the_keys_hit.items() if key_val]
+    if not some_keys_hit:
+        return
+
+    my_cam = the_base.camera
+
+    up_down_keys_hit = [key_name for key_name, key_val in the_keys_hit.items()
+                        if key_val and TRANSLATE_DATA.get(key_name, {}).get('axis', '') == 'z']
+    sideways_keys_hit = [key_name for key_name, key_val in the_keys_hit.items()
+                         if key_val and TRANSLATE_DATA.get(key_name, {}).get('axis', 'z') != 'z']
+    if up_down_keys_hit:
+        foo = (my_cam.getX(), my_cam.getY(), my_cam.getZ())
+        change_loc = calculate_offset(TRANSLATE_DATA, up_down_keys_hit, foo)
+
+        my_cam.setPos(change_loc)
+
+        return
+
+    if sideways_keys_hit:
+        foo = (my_cam.getX(), my_cam.getY(), my_cam.getZ())
+        the_h = my_cam.getH()
+        change_loc = calculate_offset_with_rotation(TRANSLATE_DATA, the_h, sideways_keys_hit, foo)
+
+        my_cam.setPos(change_loc)
+
+        return
 
 
 def rotate_camera(the_base):
@@ -45,6 +79,74 @@ def setup_camera(the_base, the_world, camera_start_coords):
     x, y, z = the_base.camera.getX(), the_base.camera.getY(), the_base.camera.getZ()
     h, p, r = the_base.camera.getR(), the_base.camera.getP(), the_base.camera.getR()
     print(f"setup_camera.camera = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
+
+
+def calculate_offset(mutators, arrow_keys_hit, some_coords):
+
+    dt = BG.globalClock.getDt()
+    change_bits = (0, 0, 0)
+
+    for some_arrow in arrow_keys_hit:
+        arrow_data = mutators[some_arrow]
+        new_scale = arrow_data['scale'] * dt
+        add_H = arrow_data['dir'][0] * new_scale
+        add_P = arrow_data['dir'][1] * new_scale
+        add_R = arrow_data['dir'][2] * new_scale
+        change_bits = (change_bits[0] + add_H, change_bits[1] + add_P, change_bits[2] + add_R)
+
+    final_bits = (change_bits[0] + some_coords[0],
+                  change_bits[1] + some_coords[1],
+                  change_bits[2] + some_coords[2])
+
+    # print(f"\ninitial coords = [{some_coords}]\nchange_bits = [{change_bits}]\nfinal_bits = [{final_bits}]\n")
+
+    return final_bits
+
+
+def calculate_offset_with_rotation(mutators, rotate_H, arrow_keys_hit, cur_coords):
+    """ Only handles X/Y coordinates - computes them based on current Rotation.
+    :param mutators:
+    :param rotate_H:
+    :param arrow_keys_hit:
+    :param cur_coords:
+    :return:
+    """
+
+    dt = BG.globalClock.getDt()
+    base_x, base_y = 0, 0
+
+    for some_arrow in arrow_keys_hit:
+        arrow_data = mutators[some_arrow]
+        new_scale = arrow_data['scale'] * dt
+        base_x = base_x + arrow_data['dir'][0] * new_scale
+        base_y = base_y + arrow_data['dir'][1] * new_scale
+
+    rotate_x, rotate_y = rotate_vector(base_x, base_y, rotate_H)
+
+    final_bits = (rotate_x + cur_coords[0], rotate_y + cur_coords[1], cur_coords[2])
+
+    # print(f"\ninitial coords = [{cur_coords}]\nrotate_bits = [{rotate_x}, {rotate_y}]\nfinal_bits = [{final_bits}]\n")
+
+    return final_bits
+
+
+def rotate_vector(x, y, angle):
+    """ Finally! A chance to use some of that trigger-nometry!
+    https://stackoverflow.com/questions/20023209/function-for-rotating-2d-objects
+    :param x:
+    :param y:
+    :param angle:
+    :return:
+    """
+
+    theta = radians(angle % 360)
+    new_x = x * cos(theta) - y * sin(theta)
+    new_y = x * sin(theta) + y * cos(theta)
+
+    # print("\n\tpre-x = %s, pre-y = %s" % (x, y))
+    # print("\n\tpost-x = %s, post-y = %s, angle = %s, theta = %s" % (new_x, new_y, angle, theta))
+
+    return new_x, new_y
 
 
 def get_abs_value(test_val, epsilon):

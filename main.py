@@ -1,3 +1,13 @@
+"""
+Purpose: learning Panda3D, by building a random block-world, that might
+bear a passing resemblance to Minecraft.
+
+Forked under MIT license, from:
+
+https://github.com/kengleason/Panda3DCraft
+
+"""
+
 import sys
 
 from panda3d.core import *
@@ -9,8 +19,9 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import WindowProperties
 
 from src.BlockClass import BLOCKS
+from src.Keys import update_key, KEYS_HIT
 from src.World import write_ground_blocks, add_block
-from src.Camera import setup_camera, rotate_camera
+from src.Camera import setup_camera, move_camera
 from src.menu import PauseScreen
 
 Core.loadPrcFile('config/general.prc')
@@ -74,24 +85,25 @@ def setup_lighting(the_base):
 def setup_tasks():
     global MY_BASE, MOUSE_ACTIVE
 
-    MY_BASE.taskMgr.add(camera_rotator, "Moving_Object", appendTask=True)
+    MY_BASE.taskMgr.add(camera_mangler, "Moving_Object", appendTask=True)
 
 
-def camera_rotator(task):
+def camera_mangler(task):
     """ This is somewhat kludgy - originally I had the taskMgr directly call rotate_camera(),
         and passing it the parameters. But it turns out that the parameters don't *change*
         (of course), and I needed MOUSE_ACTIVE to be updated.
     :param task:
     :return:
     """
-    global MY_BASE, MOUSE_ACTIVE
+    global MY_BASE, MOUSE_ACTIVE, KEYS_HIT
 
     m_node = MY_BASE.mouseWatcherNode
 
     if MOUSE_ACTIVE or not m_node.hasMouse():
         return task.cont
 
-    rotate_camera(MY_BASE)
+    move_camera(MY_BASE, KEYS_HIT)
+
     return task.cont
 
 
@@ -147,13 +159,17 @@ def hotbar_select(slot):
 
 
 def setup_base_keys():
-
-    global PAUSE_MENU, MY_BASE
+    global PAUSE_MENU, MY_BASE, KEYS_HIT
 
     MY_BASE.accept('mouse1', handle_click)
     MY_BASE.accept('mouse3', handle_click, extraArgs=[True])
     # MY_BASE.accept('escape', PAUSE_MENU.pause)
     MY_BASE.accept('escape', sys.exit)
+
+    # Arrow-keys
+    for one_key in KEYS_HIT.keys():
+        MY_BASE.accept(one_key, update_key, [one_key, True, KEYS_HIT])
+        MY_BASE.accept(one_key + '-up', update_key, [one_key, False, KEYS_HIT])
 
     # Keys that need de-bouncing
     MY_BASE.accept("m", toggle_mouse, ["m", True])
@@ -168,7 +184,7 @@ def setup_base_keys():
 def reset_stuff(key, value):
     """ De-bouncing the 'r' key
     """
-    global MY_BASE, MY_WORLD
+    global MY_BASE, MY_WORLD, CAMERA_START_COORDS
 
     if key != 'r' or not value:
         return
