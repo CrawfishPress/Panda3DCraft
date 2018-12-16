@@ -1,3 +1,8 @@
+"""
+Purpose: Builds a World dictionary of randomly-generated Block-types. I have no
+idea how it works - something to do with Noise...
+"""
+
 from contextlib import suppress
 import random
 
@@ -6,6 +11,9 @@ from noise import snoise2
 from src.BlockClass import BlockClass
 
 verboseLogging = False
+
+MAX_WIDTH = 16
+MAX_LENGTH = 16
 
 
 def write_ground_blocks(block_type, the_base):
@@ -19,8 +27,8 @@ def write_ground_blocks(block_type, the_base):
     octaves_detail = 1
     freq = 16.0 * octaves_elev
 
-    for x in range(0, 16):
-        for y in range(0, 16):
+    for x in range(0, MAX_WIDTH):
+        for y in range(0, MAX_LENGTH):
             amplitude = random.randrange(0.0, 5.0)
             if want_new_generation:
                 z = max(min(int(snoise2(x / freq, y / freq, octaves_elev) + (

@@ -19,12 +19,11 @@ KEYS_HIT = {
     "w": False,
     "s": False,
 
-    "arrow_up": False,
-    "arrow_down": False,
+    "x": False,
+    "z": False,
 
     "m": False,  # Toggle Mouse on/off
     "r": False,  # Reset camera
-    "q": False,  # Query camera position
     }
 
 TRANSLATE_DATA = {
@@ -33,8 +32,8 @@ TRANSLATE_DATA = {
     "w": {'dir': (0, 1, 0), 'axis': 'y', 'scale': 20},
     "s": {'dir': (0, -1, 0), 'axis': 'y', 'scale': 20},
 
-    "arrow_up": {'dir': (0, 0, 1), 'axis': 'z', 'scale': 10},
-    "arrow_down": {'dir': (0, 0, -1), 'axis': 'z', 'scale': 10},
+    "x": {'dir': (0, 0, 1), 'axis': 'z', 'scale': 10},
+    "z": {'dir': (0, 0, -1), 'axis': 'z', 'scale': 10},
     }
 
 
@@ -64,5 +63,5 @@ def setup_base_keys(the_base, the_keys_hit, PAUSE_MENU,
 def update_key(key, value, keys_hit):
 
     keys_hit[key] = value
-    print(f"update_key = {key}, value = {value}")
+    # print(f"update_key = {key}, value = {value}")
 

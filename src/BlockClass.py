@@ -17,6 +17,7 @@ BLOCKS = {
                'texture': BASE_TEXTURES + 'planks.png'},
     'stone': {'hotkey': 9, 'type': 'single', 'transparent': False,
               'texture': BASE_TEXTURES + 'stone.png'},
+
     'grass': {'hotkey': 4, 'type': 'multi', 'transparent': False,
               'texture_top': BASE_TEXTURES + 'grass_top.png',
               'texture_sid': BASE_TEXTURES + 'grass_side.png',

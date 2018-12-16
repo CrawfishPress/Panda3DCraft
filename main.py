@@ -29,7 +29,9 @@ if __debug__:  # True unless Python is started with -O
     print(f"debug-mode on")
     core.loadPrcFile('config/dev.prc')
 
-verboseLogging = True
+verboseLogging = False
+
+# TODO: kill all of these Global variables
 
 PICKER_RAY = None
 TRAVERSER = None
@@ -45,10 +47,14 @@ MY_BASE = None
 CAMERA_START_COORDS = (-10, -10, 30)
 
 
+class UserError(Exception):
+    pass
+
+
 def setup_lighting(the_base):
 
     global PICKER_RAY, TRAVERSER, COLLISION_HANDLER
-    fancy_rendering = False
+    # fancy_rendering = False
 
     alight = core.AmbientLight('alight')
     alight.setColor(core.VBase4(0.6, 0.6, 0.6, 1))
@@ -80,10 +86,25 @@ def setup_lighting(the_base):
     TRAVERSER.addCollider(picker_np, COLLISION_HANDLER)
 
 
-def setup_tasks():
-    global MY_BASE, MOUSE_ACTIVE
+def setup_fog(the_base, cur_block):
 
-    MY_BASE.taskMgr.add(camera_mangler, "Moving_Object", appendTask=True)
+    global CUR_BLOCK_TEXT, MY_WORLD, CAMERA_START_COORDS
+
+    fog = core.Fog("fog")
+    fog.setColor(0.5294, 0.8078, 0.9215)
+    fog.setExpDensity(0.015)
+    the_base.render.setFog(fog)
+
+    the_base.setFrameRateMeter(True)
+
+    CUR_BLOCK_TEXT = DirectLabel(text=cur_block, text_fg=(1, 1, 1, 1),
+                                 frameColor=(0, 0, 0, 0),
+                                 parent=the_base.aspect2d, scale=0.05, pos=(0, 0, -0.95))
+
+
+def setup_tasks(the_base):
+
+    the_base.taskMgr.add(camera_mangler, "Moving_Camera", appendTask=True)
 
 
 def camera_mangler(task):
@@ -118,9 +139,9 @@ def handle_click(right_click=False):
     if not MOUSE_ACTIVE:
         return
 
-    x, y, z = MY_BASE.camera.getX(), MY_BASE.camera.getY(), MY_BASE.camera.getZ()
-    h, p, r = MY_BASE.camera.getR(), MY_BASE.camera.getP(), MY_BASE.camera.getR()
-    print(f"handle_click.camera = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
+    # x, y, z = MY_BASE.camera.getX(), MY_BASE.camera.getY(), MY_BASE.camera.getZ()
+    # h, p, r = MY_BASE.camera.getR(), MY_BASE.camera.getP(), MY_BASE.camera.getR()
+    # print(f"handle_click.camera = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
 
     mpos = MY_BASE.mouseWatcherNode.getMouse()
     PICKER_RAY.setFromLens(MY_BASE.camNode, mpos.getX(), mpos.getY())
@@ -164,21 +185,21 @@ def reset_stuff(key, value):
     if key != 'r' or not value:
         return
 
-    # my_cam = MY_BASE.camera
-    # my_cam.reparentTo(MY_BASE.render)
-    # my_cam.setPos(CAMERA_START_COORDS)
-    # some_block = MY_WORLD[(0, 0, 8)].model
-    # my_cam.lookAt(some_block)
-
+    # Point Camera at some base Block
     MY_BASE.camera.setPos(CAMERA_START_COORDS)
-    foo = MY_WORLD[(0, 0, 8)].model  # Be aware this block can be *deleted*
-    x, y, z = foo.getX(), foo.getY(), foo.getZ()
-    print("reset.block[0,0,8].xyz = %s, %s, %s" % (x, y, z))
+    try:
+        foo = MY_WORLD[(0, 0, 8)].model  # Be aware this block can be *deleted*
+    except AttributeError:
+        raise UserError('I *told* you not to delete that block')
+
+    # x, y, z = foo.getX(), foo.getY(), foo.getZ()
+    # print("reset.block[0,0,8].xyz = %s, %s, %s" % (x, y, z))
     MY_BASE.camera.setHpr(0, -37, 0)
     MY_BASE.camera.lookAt(foo)
-    x, y, z = MY_BASE.camera.getX(), MY_BASE.camera.getY(), MY_BASE.camera.getZ()
-    h, p, r = MY_BASE.camera.getR(), MY_BASE.camera.getP(), MY_BASE.camera.getR()
-    print(f"camera.rs = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
+
+    # x, y, z = MY_BASE.camera.getX(), MY_BASE.camera.getY(), MY_BASE.camera.getZ()
+    # h, p, r = MY_BASE.camera.getR(), MY_BASE.camera.getP(), MY_BASE.camera.getR()
+    # print(f"camera.rs = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
 
     # MY_BASE.win.movePointer(0, int(MY_BASE.win.getXSize() / 2), int(MY_BASE.win.getYSize() / 2))
 
@@ -195,16 +216,16 @@ def toggle_mouse(key, value):
         return
 
     MOUSE_ACTIVE = not MOUSE_ACTIVE
-    print("switching mouse.active to %s" % MOUSE_ACTIVE)
+    # print("switching mouse.active to %s" % MOUSE_ACTIVE)
 
     props = WindowProperties()
     if MOUSE_ACTIVE:
-        print("Mouse now ON")
-#        props.setCursorHidden(False)
+        # print("Mouse now ON")
+        props.setCursorHidden(False)
         props.setMouseMode(WindowProperties.M_absolute)
     else:
-        print("Mouse now OFF")
-#        props.setCursorHidden(True)
+        # print("Mouse now OFF")
+        props.setCursorHidden(True)
         props.setMouseMode(WindowProperties.M_relative)
 
     MY_BASE.win.requestProperties(props)
@@ -256,22 +277,6 @@ def add_block_object(cur_block, obj, node_path, the_world, the_base):
         add_block(cur_block, *new_coords, the_world, the_base)
 
 
-def setup_fog(the_base, cur_block):
-
-    global CUR_BLOCK_TEXT, MY_WORLD, CAMERA_START_COORDS
-
-    fog = core.Fog("fog")
-    fog.setColor(0.5294, 0.8078, 0.9215)
-    fog.setExpDensity(0.015)
-    the_base.render.setFog(fog)
-
-    the_base.setFrameRateMeter(True)
-
-    CUR_BLOCK_TEXT = DirectLabel(text=cur_block, text_fg=(1, 1, 1, 1),
-                                 frameColor=(0, 0, 0, 0),
-                                 parent=the_base.aspect2d, scale=0.05, pos=(0, 0, -0.95))
-
-
 def run_the_world():
 
     global MY_BASE, MY_WORLD, PAUSE_MENU, KEYS_HIT
@@ -288,7 +293,7 @@ def run_the_world():
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
 
     setup_base_keys(MY_BASE, KEYS_HIT, PAUSE_MENU, handle_click, toggle_mouse, reset_stuff, hotbar_select)
-    setup_tasks()
+    setup_tasks(MY_BASE)
 
     MY_BASE.run()
 

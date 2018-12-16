@@ -1,7 +1,12 @@
 """
 Assumes that a default Camera has been created, then
 moves it around via assigned keys, with the Mouse to change
-direction of looking. (and movement to be relative to forward-looking).
+direction of looking.
+
+Note that horizontal-movement, is relative to the forward-vector (where
+the Mouse is pointing). So your X/Y coordinates change differently, depending
+on where you're facing. But the vertical-movement always moves relative to
+the Z-axis, so regardless of your facing, you move up/down on the Z-axis only.
 
 Only difference I see in 'absolute' vs 'relative' mousing - 'absolute'
 lets the mouse move outside the screen (where movement-reports stop, since
@@ -12,7 +17,12 @@ the only thing reported is the motion of the mouse).
 """
 
 from math import cos, sin, radians
+
 import direct.showbase.ShowBaseGlobal as BG
+
+# noinspection PyUnresolvedReferences
+from panda3d.core import WindowProperties
+
 from src.Keys import TRANSLATE_DATA
 
 
@@ -30,10 +40,10 @@ def move_camera(the_base, the_keys_hit):
                         if key_val and TRANSLATE_DATA.get(key_name, {}).get('axis', '') == 'z']
     sideways_keys_hit = [key_name for key_name, key_val in the_keys_hit.items()
                          if key_val and TRANSLATE_DATA.get(key_name, {}).get('axis', 'z') != 'z']
+
     if up_down_keys_hit:
         foo = (my_cam.getX(), my_cam.getY(), my_cam.getZ())
-        change_loc = calculate_offset(TRANSLATE_DATA, up_down_keys_hit, foo)
-
+        change_loc = calculate_vertical_offset(TRANSLATE_DATA, up_down_keys_hit, foo)
         my_cam.setPos(change_loc)
 
         return
@@ -41,8 +51,7 @@ def move_camera(the_base, the_keys_hit):
     if sideways_keys_hit:
         foo = (my_cam.getX(), my_cam.getY(), my_cam.getZ())
         the_h = my_cam.getH()
-        change_loc = calculate_offset_with_rotation(TRANSLATE_DATA, the_h, sideways_keys_hit, foo)
-
+        change_loc = calculate_horizontal_offset(TRANSLATE_DATA, the_h, sideways_keys_hit, foo)
         my_cam.setPos(change_loc)
 
         return
@@ -51,7 +60,7 @@ def move_camera(the_base, the_keys_hit):
 def rotate_camera(the_base):
     """ Mouse returns a set of X/Y coordinates, with 0/0 in the center of the screen.
         Convert X into an H-rotation, and Y into a P-rotation.
-        Only if Mouse is in Relative-mode.
+        Mouse should be in Relative-mode.
     """
 
     rotation_scale = 100
@@ -74,7 +83,7 @@ def rotate_camera(the_base):
     my_cam.setH(new_H)
 
     new_P = old_P + move_dir_P * dt * rotation_scale
-    new_P = lock_to_zero(new_P)  # This didn't work as expected...
+    new_P = lock_to_zero(new_P)
     my_cam.setP(new_P)
 
     # print(f"rotate_camera.camera: [{x}, {y}, -]. [h: {old_H:3.1f} -> {old_H:3.1f}, dt = {dt:3.1f}]")
@@ -86,26 +95,33 @@ def setup_camera(the_base, the_world, camera_start_coords):
 
     the_base.camLens.setFar(256)
     the_base.camera.setPos(camera_start_coords)
-    the_base.camera.setHpr(0, -37, 0)
+    # the_base.camera.setHpr(0, -37, 0)  # This didn't seem to work, so just point at a Block.
     foo = the_world[(0, 0, 8)].model
     the_base.camera.lookAt(foo)
-    x, y, z = the_base.camera.getX(), the_base.camera.getY(), the_base.camera.getZ()
-    h, p, r = the_base.camera.getR(), the_base.camera.getP(), the_base.camera.getR()
-    print(f"setup_camera.camera = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
+
+    # x, y, z = the_base.camera.getX(), the_base.camera.getY(), the_base.camera.getZ()
+    # h, p, r = the_base.camera.getR(), the_base.camera.getP(), the_base.camera.getR()
+    # print(f"setup_camera.camera = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
+
+    # Turn off Mouse
+    props = WindowProperties()
+    props.setCursorHidden(True)
+    props.setMouseMode(WindowProperties.M_relative)
+    the_base.win.requestProperties(props)
 
 
-def calculate_offset(mutators, arrow_keys_hit, some_coords):
+def calculate_vertical_offset(mutators, arrow_keys_hit, some_coords):
 
     dt = BG.globalClock.getDt()
     change_bits = (0, 0, 0)
 
-    for some_arrow in arrow_keys_hit:
-        arrow_data = mutators[some_arrow]
-        new_scale = arrow_data['scale'] * dt
-        add_H = arrow_data['dir'][0] * new_scale
-        add_P = arrow_data['dir'][1] * new_scale
-        add_R = arrow_data['dir'][2] * new_scale
-        change_bits = (change_bits[0] + add_H, change_bits[1] + add_P, change_bits[2] + add_R)
+    some_arrow = arrow_keys_hit[0]
+    arrow_data = mutators[some_arrow]
+    new_scale = arrow_data['scale'] * dt
+    add_H = arrow_data['dir'][0] * new_scale
+    add_P = arrow_data['dir'][1] * new_scale
+    add_R = arrow_data['dir'][2] * new_scale
+    change_bits = (change_bits[0] + add_H, change_bits[1] + add_P, change_bits[2] + add_R)
 
     final_bits = (change_bits[0] + some_coords[0],
                   change_bits[1] + some_coords[1],
@@ -116,7 +132,7 @@ def calculate_offset(mutators, arrow_keys_hit, some_coords):
     return final_bits
 
 
-def calculate_offset_with_rotation(mutators, rotate_H, arrow_keys_hit, cur_coords):
+def calculate_horizontal_offset(mutators, rotate_H, arrow_keys_hit, cur_coords):
     """ Only handles X/Y coordinates - computes them based on current Rotation.
     :param mutators:
     :param rotate_H:
@@ -128,6 +144,9 @@ def calculate_offset_with_rotation(mutators, rotate_H, arrow_keys_hit, cur_coord
     dt = BG.globalClock.getDt()
     base_x, base_y = 0, 0
 
+    # Unlike the up/down motion, it's possible for two movement-keys to be held
+    # down at once (say "forward" and "sideways"), so combine all of the vector-changes
+    # from every key that's being hit.
     for some_arrow in arrow_keys_hit:
         arrow_data = mutators[some_arrow]
         new_scale = arrow_data['scale'] * dt
