@@ -1,23 +1,26 @@
 """
-Purpose: convert key-presses into a Dictionary of keys being hit
+Purpose: convert key-presses into a Dictionary of keys being hit. It is the
+responsibility of other functions to convert keys-hit, to movement.
 
-Much of it is way kludgy, because but while Panda3d sends the "shift-arrow_left" single event,
-it doesn't send a "shift-arrow_left-up", but two events, "shift" and "arrow_left-up".
-Yes, that's "shift", and not even "shift-up". Sigh...
+At one point, I had planned to populate KEYS_HIT from the rotate/translate-keys table,
+but decided I prefer it explicitly declared, as documentation.
 
 It's likely there are better ways of handling key-presses than this...
 """
 
-# At one point, I had planned to populate this table from the rotate/translate-keys table,
-# but decided I prefer it explicitly here, as documentation.
+import sys
+
+from src.BlockClass import BLOCKS
+
+
 KEYS_HIT = {
-    "arrow_left": False,
-    "arrow_right": False,
+    "a": False,
+    "d": False,
+    "w": False,
+    "s": False,
+
     "arrow_up": False,
     "arrow_down": False,
-
-    "shift-arrow_up": False,
-    "shift-arrow_down": False,
 
     "m": False,  # Toggle Mouse on/off
     "r": False,  # Reset camera
@@ -25,26 +28,41 @@ KEYS_HIT = {
     }
 
 TRANSLATE_DATA = {
-    "arrow_left": {'dir': (-1, 0, 0), 'axis': 'x', 'scale': 10},
-    "arrow_right": {'dir': (1, 0, 0), 'axis': 'x', 'scale': 10},
-    "arrow_up": {'dir': (0, 1, 0), 'axis': 'y', 'scale': 20},
-    "arrow_down": {'dir': (0, -1, 0), 'axis': 'y', 'scale': 20},
+    "a": {'dir': (-1, 0, 0), 'axis': 'x', 'scale': 10},
+    "d": {'dir': (1, 0, 0), 'axis': 'x', 'scale': 10},
+    "w": {'dir': (0, 1, 0), 'axis': 'y', 'scale': 20},
+    "s": {'dir': (0, -1, 0), 'axis': 'y', 'scale': 20},
 
-    "shift-arrow_up": {'dir': (0, 0, 1), 'axis': 'z', 'scale': 10},
-    "shift-arrow_down": {'dir': (0, 0, -1), 'axis': 'z', 'scale': 10},
+    "arrow_up": {'dir': (0, 0, 1), 'axis': 'z', 'scale': 10},
+    "arrow_down": {'dir': (0, 0, -1), 'axis': 'z', 'scale': 10},
     }
+
+
+def setup_base_keys(the_base, the_keys_hit, PAUSE_MENU,
+                    handle_click, toggle_mouse, reset_stuff, hotbar_select):
+
+    the_base.accept('mouse1', handle_click)
+    the_base.accept('mouse3', handle_click, extraArgs=[True])
+    # MY_BASE.accept('escape', PAUSE_MENU.pause)  # Currently broken after camera-changes
+    the_base.accept('escape', sys.exit)
+
+    # Arrow-keys
+    for one_key in the_keys_hit.keys():
+        the_base.accept(one_key, update_key, [one_key, True, the_keys_hit])
+        the_base.accept(one_key + '-up', update_key, [one_key, False, the_keys_hit])
+
+    # Keys that need de-bouncing
+    the_base.accept("m", toggle_mouse, ["m", True])
+    the_base.accept("m-up", toggle_mouse, ["m", False])
+    the_base.accept("r", reset_stuff, ["r", True])
+    the_base.accept("r-up", reset_stuff, ["r", False])
+
+    for one_block in BLOCKS.values():
+        the_base.accept(str(one_block['hotkey']), hotbar_select, extraArgs=[one_block['hotkey']])
 
 
 def update_key(key, value, keys_hit):
 
     keys_hit[key] = value
-    print("update_key = %s, value = %s" % (key, value))
+    print(f"update_key = {key}, value = {value}")
 
-    if key == 'shift' and not value:
-        keys_hit['shift-arrow_up'] = False
-        keys_hit['shift-arrow_down'] = False
-
-    if key == 'arrow_up' and not value:
-        keys_hit['shift-arrow_up'] = False
-    if key == 'arrow_down' and not value:
-        keys_hit['shift-arrow_down'] = False

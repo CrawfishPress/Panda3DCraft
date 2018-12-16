@@ -8,10 +8,8 @@ https://github.com/kengleason/Panda3DCraft
 
 """
 
-import sys
-
 from panda3d.core import *
-import panda3d.core as Core
+import panda3d.core as core
 from direct.gui.DirectGui import *
 from direct.showbase.ShowBase import ShowBase
 
@@ -19,17 +17,17 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import WindowProperties
 
 from src.BlockClass import BLOCKS
-from src.Keys import update_key, KEYS_HIT
+from src.Keys import setup_base_keys, KEYS_HIT
 from src.World import write_ground_blocks, add_block
 from src.Camera import setup_camera, move_camera
 from src.menu import PauseScreen
 
-Core.loadPrcFile('config/general.prc')
+core.loadPrcFile('config/general.prc')
 
 # noinspection PyUnreachableCode
 if __debug__:  # True unless Python is started with -O
     print(f"debug-mode on")
-    Core.loadPrcFile('config/dev.prc')
+    core.loadPrcFile('config/dev.prc')
 
 verboseLogging = True
 
@@ -52,13 +50,13 @@ def setup_lighting(the_base):
     global PICKER_RAY, TRAVERSER, COLLISION_HANDLER
     fancy_rendering = False
 
-    alight = Core.AmbientLight('alight')
-    alight.setColor(Core.VBase4(0.6, 0.6, 0.6, 1))
+    alight = core.AmbientLight('alight')
+    alight.setColor(core.VBase4(0.6, 0.6, 0.6, 1))
     alnp = the_base.render.attachNewNode(alight)
     the_base.render.setLight(alnp)
-    slight = Core.Spotlight('slight')
-    slight.setColor(Core.VBase4(1, 1, 1, 1))
-    lens = Core.PerspectiveLens()
+    slight = core.Spotlight('slight')
+    slight.setColor(core.VBase4(1, 1, 1, 1))
+    lens = core.PerspectiveLens()
     slight.setLens(lens)
     slnp = the_base.render.attachNewNode(slight)
     slnp.setPos(8, -9, 128)
@@ -71,13 +69,13 @@ def setup_lighting(the_base):
     #     # Enable the shader generator for the receiving nodes
     #     the_base.render.setShaderAuto()
 
-    TRAVERSER = Core.CollisionTraverser()
-    COLLISION_HANDLER = Core.CollisionHandlerQueue()
+    TRAVERSER = core.CollisionTraverser()
+    COLLISION_HANDLER = core.CollisionHandlerQueue()
 
-    picker_node = Core.CollisionNode('mouseRay')
+    picker_node = core.CollisionNode('mouseRay')
     picker_np = the_base.camera.attachNewNode(picker_node)
-    picker_node.setFromCollideMask(Core.GeomNode.getDefaultCollideMask())
-    PICKER_RAY = Core.CollisionRay()
+    picker_node.setFromCollideMask(core.GeomNode.getDefaultCollideMask())
+    PICKER_RAY = core.CollisionRay()
     picker_node.addSolid(PICKER_RAY)
     TRAVERSER.addCollider(picker_np, COLLISION_HANDLER)
 
@@ -156,29 +154,6 @@ def hotbar_select(slot):
     if verboseLogging:
         print(f"Selected hotbar slot {slot}")
         print(f"Current block: {next_block_name}")
-
-
-def setup_base_keys():
-    global PAUSE_MENU, MY_BASE, KEYS_HIT
-
-    MY_BASE.accept('mouse1', handle_click)
-    MY_BASE.accept('mouse3', handle_click, extraArgs=[True])
-    # MY_BASE.accept('escape', PAUSE_MENU.pause)
-    MY_BASE.accept('escape', sys.exit)
-
-    # Arrow-keys
-    for one_key in KEYS_HIT.keys():
-        MY_BASE.accept(one_key, update_key, [one_key, True, KEYS_HIT])
-        MY_BASE.accept(one_key + '-up', update_key, [one_key, False, KEYS_HIT])
-
-    # Keys that need de-bouncing
-    MY_BASE.accept("m", toggle_mouse, ["m", True])
-    MY_BASE.accept("m-up", toggle_mouse, ["m", False])
-    MY_BASE.accept("r", reset_stuff, ["r", True])
-    MY_BASE.accept("r-up", reset_stuff, ["r", False])
-
-    for one_block in BLOCKS.values():
-        MY_BASE.accept(str(one_block['hotkey']), hotbar_select, extraArgs=[one_block['hotkey']])
 
 
 def reset_stuff(key, value):
@@ -285,7 +260,7 @@ def setup_fog(the_base, cur_block):
 
     global CUR_BLOCK_TEXT, MY_WORLD, CAMERA_START_COORDS
 
-    fog = Core.Fog("fog")
+    fog = core.Fog("fog")
     fog.setColor(0.5294, 0.8078, 0.9215)
     fog.setExpDensity(0.015)
     the_base.render.setFog(fog)
@@ -299,7 +274,7 @@ def setup_fog(the_base, cur_block):
 
 def run_the_world():
 
-    global MY_BASE, MY_WORLD, PAUSE_MENU
+    global MY_BASE, MY_WORLD, PAUSE_MENU, KEYS_HIT
     print("building world...")
 
     MY_BASE = ShowBase()
@@ -307,11 +282,12 @@ def run_the_world():
     PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD, add_block)
 
     MY_BASE.disableMouse()
-    setup_lighting(MY_BASE)
 
-    setup_base_keys()
+    setup_lighting(MY_BASE)
     setup_fog(MY_BASE, CURRENT_BLOCK)
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
+
+    setup_base_keys(MY_BASE, KEYS_HIT, PAUSE_MENU, handle_click, toggle_mouse, reset_stuff, hotbar_select)
     setup_tasks()
 
     MY_BASE.run()

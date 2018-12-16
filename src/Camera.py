@@ -1,3 +1,16 @@
+"""
+Assumes that a default Camera has been created, then
+moves it around via assigned keys, with the Mouse to change
+direction of looking. (and movement to be relative to forward-looking).
+
+Only difference I see in 'absolute' vs 'relative' mousing - 'absolute'
+lets the mouse move outside the screen (where movement-reports stop, since
+the Window doesn't have the mouse any more), and 'relative' reports movement
+to any extent, no limits (but the cursor is fixed in the center of the screen,
+the only thing reported is the motion of the mouse).
+
+"""
+
 from math import cos, sin, radians
 import direct.showbase.ShowBaseGlobal as BG
 from src.Keys import TRANSLATE_DATA
