@@ -177,6 +177,19 @@ def hotbar_select(slot):
         print(f"Current block: {next_block_name}")
 
 
+def call_pause_screen():
+    """ This is a little kludgy, since I activate the Mouse, if needed,
+        so the Pause screen can work, but don't de-activate it if it was
+        already inactive. Hey, the player can just hit the 'm' key again...
+    """
+    global MOUSE_ACTIVE, MY_BASE, PAUSE_MENU
+
+    if not MOUSE_ACTIVE:
+        toggle_mouse('m', True)
+
+    PAUSE_MENU.pause()
+
+
 def reset_stuff(key, value):
     """ De-bouncing the 'r' key
     """
@@ -292,7 +305,7 @@ def run_the_world():
     setup_fog(MY_BASE, CURRENT_BLOCK)
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
 
-    setup_base_keys(MY_BASE, KEYS_HIT, PAUSE_MENU, handle_click, toggle_mouse, reset_stuff, hotbar_select)
+    setup_base_keys(MY_BASE, KEYS_HIT, call_pause_screen, handle_click, toggle_mouse, reset_stuff, hotbar_select)
     setup_tasks(MY_BASE)
 
     MY_BASE.run()

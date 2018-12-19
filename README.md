@@ -43,7 +43,7 @@ block-picker/Collider stuff works, and it was just easier to make two separate m
  - *left-mouse-click* - deletes the Block where the mouse is pointing
 
 ## TODO
- - Fix the Pause-Screen - it broke after I changed how Camera-handling worked
+ - Done: Fix the Pause-Screen - it broke after I changed how Camera-handling worked
  - Combine the two Modes, so you can move around and add blocks at the same time.
  - Change Block-type selection to a visible Menu of Blocks, rather than a number.
  - Handle re-setting the Camera to look at the closest Block, if it has been *deleted*.

@@ -1,3 +1,14 @@
+"""
+Purpose: do lots of stuff - show a Pause-menu, with several options.
+Note that this was broken before, when I changed Camera-movement
+(which required Mouse-behavior changes). The fix was to re-enable
+the Mouse before showing this screen.
+
+Note that I don't re-disable the Mouse afterwards, because it would
+require yet another Global variable to keep track of. Just means that
+the player has to hit 'm' again to return to Camera-movement mode. Wups...
+"""
+
 import os
 
 from panda3d.core import *
@@ -226,8 +237,6 @@ class PauseScreen:
         self.is_paused = not self.is_paused
 
         if self.is_paused:
-            self.base.disableMouse()
             self.show_pause()
         else:
-            self.base.enableMouse()
             self.hide()

@@ -37,13 +37,12 @@ TRANSLATE_DATA = {
     }
 
 
-def setup_base_keys(the_base, the_keys_hit, PAUSE_MENU,
+def setup_base_keys(the_base, the_keys_hit, call_pause_screen,
                     handle_click, toggle_mouse, reset_stuff, hotbar_select):
 
     the_base.accept('mouse1', handle_click)
     the_base.accept('mouse3', handle_click, extraArgs=[True])
-    # MY_BASE.accept('escape', PAUSE_MENU.pause)  # Currently broken after camera-changes
-    the_base.accept('escape', sys.exit)
+    the_base.accept('escape', call_pause_screen)
 
     # Arrow-keys
     for one_key in the_keys_hit.keys():
