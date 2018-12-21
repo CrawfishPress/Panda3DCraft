@@ -10,8 +10,6 @@ It's likely there are better ways of handling key-presses than this...
 
 import sys
 
-from src.BlockClass import BLOCKS
-
 
 KEYS_HIT = {
     "a": False,
@@ -24,6 +22,7 @@ KEYS_HIT = {
 
     "m": False,  # Toggle Mouse on/off
     "r": False,  # Reset camera
+    "b": False,  # Toggle Block menu
     }
 
 TRANSLATE_DATA = {
@@ -38,11 +37,12 @@ TRANSLATE_DATA = {
 
 
 def setup_base_keys(the_base, the_keys_hit, call_pause_screen,
-                    handle_click, toggle_mouse, reset_stuff, hotbar_select):
+                    handle_click, toggle_mouse, toggle_menu, reset_stuff):
 
     the_base.accept('mouse1', handle_click)
     the_base.accept('mouse3', handle_click, extraArgs=[True])
     the_base.accept('escape', call_pause_screen)
+    # the_base.accept('escape', sys.exit)
 
     # Arrow-keys
     for one_key in the_keys_hit.keys():
@@ -54,9 +54,8 @@ def setup_base_keys(the_base, the_keys_hit, call_pause_screen,
     the_base.accept("m-up", toggle_mouse, ["m", False])
     the_base.accept("r", reset_stuff, ["r", True])
     the_base.accept("r-up", reset_stuff, ["r", False])
-
-    for one_block in BLOCKS.values():
-        the_base.accept(str(one_block['hotkey']), hotbar_select, extraArgs=[one_block['hotkey']])
+    the_base.accept("b", toggle_menu, ["b", True])
+    the_base.accept("b-up", toggle_menu, ["b", False])
 
 
 def update_key(key, value, keys_hit):

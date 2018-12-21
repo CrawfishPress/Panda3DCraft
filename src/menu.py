@@ -12,7 +12,8 @@ the player has to hit 'm' again to return to Camera-movement mode. Wups...
 import os
 
 from panda3d.core import *
-import panda3d.core as Core
+import panda3d.core as core
+# noinspection PyPackageRequirements
 from direct.gui.DirectGui import *
 
 
@@ -26,7 +27,7 @@ class PauseScreen:
         self.loadScr = base.aspect2d.attachNewNode("load")  # It also helps for flipping between screens
         self.saveScr = base.aspect2d.attachNewNode("save")
 
-        cm = Core.CardMaker('card')
+        cm = core.CardMaker('card')
         self.dim = base.render2d.attachNewNode(cm.generate())
         self.dim.setPos(-1, 0, -1)
         self.dim.setScale(2)

@@ -10,13 +10,16 @@ https://github.com/kengleason/Panda3DCraft
 
 from panda3d.core import *
 import panda3d.core as core
+# noinspection PyPackageRequirements
 from direct.gui.DirectGui import *
+# noinspection PyPackageRequirements
 from direct.showbase.ShowBase import ShowBase
 
 # noinspection PyUnresolvedReferences
 from panda3d.core import WindowProperties
 
 from src.BlockClass import BLOCKS
+from src.BlockMenu import BlockMenu
 from src.Keys import setup_base_keys, KEYS_HIT
 from src.World import write_ground_blocks, add_block
 from src.Camera import setup_camera, move_camera
@@ -37,6 +40,7 @@ PICKER_RAY = None
 TRAVERSER = None
 COLLISION_HANDLER = None
 PAUSE_MENU = None
+BLOCK_MENU = None
 
 CURRENT_BLOCK = 'dirt'
 CUR_BLOCK_TEXT = None
@@ -163,20 +167,6 @@ def handle_click(right_click=False):
         remove_block_object(picked_obj, MY_WORLD, MY_BASE)
 
 
-def hotbar_select(slot):
-
-    global CURRENT_BLOCK, CUR_BLOCK_TEXT
-
-    next_block_name = [block_name for block_name, block_val in BLOCKS.items()
-                       if block_val['hotkey'] == slot][0]
-    CURRENT_BLOCK = next_block_name
-    CUR_BLOCK_TEXT["text"] = next_block_name
-
-    if verboseLogging:
-        print(f"Selected hotbar slot {slot}")
-        print(f"Current block: {next_block_name}")
-
-
 def call_pause_screen():
     """ This is a little kludgy, since I activate the Mouse, if needed,
         so the Pause screen can work, but don't de-activate it if it was
@@ -188,6 +178,24 @@ def call_pause_screen():
         toggle_mouse('m', True)
 
     PAUSE_MENU.pause()
+
+
+def call_toggle_blocks(key, value):
+    global MY_BASE, MOUSE_ACTIVE, BLOCK_MENU, CURRENT_BLOCK, CUR_BLOCK_TEXT
+
+    if key != 'b' or not value:
+        return
+
+    if not MOUSE_ACTIVE:
+        toggle_mouse('m', True)
+
+    BLOCK_MENU.toggle_menu()
+
+    # If menu turned off, set the new block-type
+    if not BLOCK_MENU.is_visible:
+        cur_block_name = BLOCK_MENU.active_block_type
+        CURRENT_BLOCK = cur_block_name
+        CUR_BLOCK_TEXT["text"] = cur_block_name
 
 
 def reset_stuff(key, value):
@@ -292,7 +300,7 @@ def add_block_object(cur_block, obj, node_path, the_world, the_base):
 
 def run_the_world():
 
-    global MY_BASE, MY_WORLD, PAUSE_MENU, KEYS_HIT
+    global MY_BASE, MY_WORLD, PAUSE_MENU, KEYS_HIT, BLOCK_MENU
     print("building world...")
 
     MY_BASE = ShowBase()
@@ -301,11 +309,15 @@ def run_the_world():
 
     MY_BASE.disableMouse()
 
+    BLOCK_MENU = BlockMenu(MY_BASE)
+
     setup_lighting(MY_BASE)
     setup_fog(MY_BASE, CURRENT_BLOCK)
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
 
-    setup_base_keys(MY_BASE, KEYS_HIT, call_pause_screen, handle_click, toggle_mouse, reset_stuff, hotbar_select)
+    setup_base_keys(MY_BASE, KEYS_HIT, call_pause_screen, handle_click,
+                    toggle_mouse, call_toggle_blocks, reset_stuff)
+
     setup_tasks(MY_BASE)
 
     MY_BASE.run()
