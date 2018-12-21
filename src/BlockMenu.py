@@ -23,6 +23,9 @@ from src.BlockClass import BLOCKS
 # noinspection PyPackageRequirements
 from direct.gui.DirectGui import *
 
+# The colors, in order, are: button-up, button-pressed, button-mouseover
+# I can't seem to find a way to tell a Button to keep Pressed-state after its released,
+# so I just change its button-up color to 'green'.
 INACTIVE_COLORS = ('none', 'green', 'yellow')
 ACTIVE_COLORS = ('green', 'green', 'yellow')
 

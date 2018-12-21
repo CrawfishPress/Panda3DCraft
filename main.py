@@ -20,7 +20,7 @@ from panda3d.core import WindowProperties
 
 from src.BlockMenu import BlockMenu
 from src.Keys import setup_base_keys
-from src.World import write_ground_blocks, add_block, remove_block_object, add_block_object
+from src.World import write_ground_blocks, remove_block_object, add_block_object
 from src.Camera import setup_camera, move_camera
 from src.menu import PauseScreen
 
@@ -39,7 +39,6 @@ COLLISION_HANDLER = None
 PAUSE_MENU = None
 BLOCK_MENU = None
 
-CURRENT_BLOCK = 'dirt'
 CUR_BLOCK_TEXT = None
 MOUSE_ACTIVE = False
 
@@ -128,7 +127,7 @@ def camera_mangler(task):
 
 def handle_click(right_click=False):
 
-    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD, PAUSE_MENU, CURRENT_BLOCK, MOUSE_ACTIVE
+    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, MOUSE_ACTIVE
 
     if PAUSE_MENU.is_paused:
         return
@@ -157,7 +156,8 @@ def handle_click(right_click=False):
         return
 
     if right_click:
-        add_block_object(CURRENT_BLOCK, picked_obj, COLLISION_HANDLER.getEntry(0).getIntoNodePath(),
+        add_block_object(BLOCK_MENU.active_block_type, picked_obj,
+                         COLLISION_HANDLER.getEntry(0).getIntoNodePath(),
                          MY_WORLD, MY_BASE)
     else:
         remove_block_object(picked_obj, MY_WORLD, MY_BASE)
@@ -177,7 +177,7 @@ def call_pause_screen():
 
 
 def call_toggle_blocks(key, value):
-    global MY_BASE, MOUSE_ACTIVE, BLOCK_MENU, CURRENT_BLOCK, CUR_BLOCK_TEXT
+    global MY_BASE, MOUSE_ACTIVE, BLOCK_MENU, CUR_BLOCK_TEXT
 
     if key != 'b' or not value:
         return
@@ -190,7 +190,6 @@ def call_toggle_blocks(key, value):
     # If menu turned off, set the new block-type
     if not BLOCK_MENU.is_visible:
         cur_block_name = BLOCK_MENU.active_block_type
-        CURRENT_BLOCK = cur_block_name
         CUR_BLOCK_TEXT["text"] = cur_block_name
 
 
@@ -254,15 +253,17 @@ def run_the_world():
     print("building world...")
 
     MY_BASE = ShowBase()
-    MY_WORLD = write_ground_blocks(CURRENT_BLOCK, MY_BASE)
-    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD, add_block)
+    BLOCK_MENU = BlockMenu(MY_BASE)
+    cur_block = BLOCK_MENU.active_block_type
+    MY_WORLD = write_ground_blocks(cur_block, MY_BASE)
+    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
 
     MY_BASE.disableMouse()
 
     BLOCK_MENU = BlockMenu(MY_BASE)
 
     setup_lighting(MY_BASE)
-    setup_fog(MY_BASE, CURRENT_BLOCK)
+    setup_fog(MY_BASE, cur_block)
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
 
     setup_base_keys(MY_BASE, call_pause_screen, handle_click,

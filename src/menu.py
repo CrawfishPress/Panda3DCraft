@@ -16,9 +16,11 @@ import panda3d.core as core
 # noinspection PyPackageRequirements
 from direct.gui.DirectGui import *
 
+from src.World import add_block as add_block_func
+
 
 class PauseScreen:
-    def __init__(self, base, world, add_block_func):
+    def __init__(self, base, world):
         self.is_paused = False
         self.base = base
         self.world = world
