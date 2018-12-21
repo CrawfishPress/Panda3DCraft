@@ -36,7 +36,7 @@ TRANSLATE_DATA = {
     }
 
 
-def setup_base_keys(the_base, the_keys_hit, call_pause_screen,
+def setup_base_keys(the_base, call_pause_screen,
                     handle_click, toggle_mouse, toggle_menu, reset_stuff):
 
     the_base.accept('mouse1', handle_click)
@@ -45,9 +45,9 @@ def setup_base_keys(the_base, the_keys_hit, call_pause_screen,
     # the_base.accept('escape', sys.exit)
 
     # Arrow-keys
-    for one_key in the_keys_hit.keys():
-        the_base.accept(one_key, update_key, [one_key, True, the_keys_hit])
-        the_base.accept(one_key + '-up', update_key, [one_key, False, the_keys_hit])
+    for one_key in KEYS_HIT.keys():
+        the_base.accept(one_key, update_key, [one_key, True, KEYS_HIT])
+        the_base.accept(one_key + '-up', update_key, [one_key, False, KEYS_HIT])
 
     # Keys that need de-bouncing
     the_base.accept("m", toggle_mouse, ["m", True])

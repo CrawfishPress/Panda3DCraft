@@ -54,4 +54,5 @@ Temporary Items
 *.pyc
 *.pyo
 
+# PyCharm files
 .idea

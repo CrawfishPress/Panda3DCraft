@@ -19,8 +19,8 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import WindowProperties
 
 from src.BlockMenu import BlockMenu
-from src.Keys import setup_base_keys, KEYS_HIT
-from src.World import write_ground_blocks, add_block
+from src.Keys import setup_base_keys
+from src.World import write_ground_blocks, add_block, remove_block_object, add_block_object
 from src.Camera import setup_camera, move_camera
 from src.menu import PauseScreen
 
@@ -30,8 +30,6 @@ core.loadPrcFile('config/general.prc')
 if __debug__:  # True unless Python is started with -O
     print(f"debug-mode on")
     core.loadPrcFile('config/dev.prc')
-
-verboseLogging = False
 
 # TODO: kill all of these Global variables
 
@@ -72,6 +70,7 @@ def setup_lighting(the_base):
     slnp.setHpr(0, 270, 0)
     the_base.render.setLight(slnp)
 
+    # I have no idea what this does, so it must not be important...
     # if fancy_rendering:
     #     # Use a 512x512 resolution shadow map
     #     slight.setShadowCaster(True, 512, 512)
@@ -91,7 +90,7 @@ def setup_lighting(the_base):
 
 def setup_fog(the_base, cur_block):
 
-    global CUR_BLOCK_TEXT, MY_WORLD, CAMERA_START_COORDS
+    global CUR_BLOCK_TEXT, CAMERA_START_COORDS
 
     fog = core.Fog("fog")
     fog.setColor(0.5294, 0.8078, 0.9215)
@@ -114,17 +113,15 @@ def camera_mangler(task):
     """ This is somewhat kludgy - originally I had the taskMgr directly call rotate_camera(),
         and passing it the parameters. But it turns out that the parameters don't *change*
         (of course), and I needed MOUSE_ACTIVE to be updated.
-    :param task:
-    :return:
     """
-    global MY_BASE, MOUSE_ACTIVE, KEYS_HIT
+    global MY_BASE, MOUSE_ACTIVE
 
     m_node = MY_BASE.mouseWatcherNode
 
     if MOUSE_ACTIVE or not m_node.hasMouse():
         return task.cont
 
-    move_camera(MY_BASE, KEYS_HIT)
+    move_camera(MY_BASE)
 
     return task.cont
 
@@ -251,55 +248,9 @@ def toggle_mouse(key, value):
     MY_BASE.win.requestProperties(props)
 
 
-def remove_block_object(obj, the_world, the_base):
-
-    if verboseLogging:
-        print(f"Left clicked a block at [{obj.getX()}, {obj.getY()}, {obj.getZ()}]")
-
-    # We have to add the Block in order to destroy it...
-    add_block('air', obj.getX(), obj.getY(), obj.getZ(), the_world, the_base)
-
-
-def add_block_object(cur_block, obj, node_path, the_world, the_base):
-
-    if verboseLogging:
-        print(f"Right clicked a block at [{obj.getX()}, {obj.getY()}, {obj.getZ()}],"
-              f" attempting to place [{cur_block}]")
-
-    moves = {
-        'west': {'delta_x': -1, 'delta_y': 0, 'delta_z': 0,
-                 'clicked': not node_path.findNetTag('westTag').isEmpty()},
-        'east': {'delta_x': 1, 'delta_y': 0, 'delta_z': 0,
-                 'clicked': not node_path.findNetTag('eastTag').isEmpty()},
-        'south': {'delta_x': 0, 'delta_y': -1, 'delta_z': 0,
-                  'clicked': not node_path.findNetTag('southTag').isEmpty()},
-        'north': {'delta_x': 0, 'delta_y': 1, 'delta_z': 0,
-                  'clicked': not node_path.findNetTag('northTag').isEmpty()},
-        'top': {'delta_x': 0, 'delta_y': 0, 'delta_z': 1,
-                'clicked': not node_path.findNetTag('topTag').isEmpty()},
-        'bot': {'delta_x': 0, 'delta_y': 0, 'delta_z': -1,
-                'clicked': not node_path.findNetTag('botTag').isEmpty()},
-        }
-
-    blocks_clicked = [one_block for one_block in moves.values() if one_block['clicked']]
-    # noinspection PyUnreachableCode
-    if __debug__:
-        assert len(blocks_clicked) == 1
-    new_block = blocks_clicked[0]
-
-    # Find coords of "new" block
-    obj_x, obj_y, obj_z = obj.getX(), obj.getY(), obj.getZ()
-    delta_x, delta_y, delta_z = new_block['delta_x'], new_block['delta_y'], new_block['delta_z']
-    new_coords = (obj_x + delta_x, obj_y + delta_y, obj_z + delta_z)
-
-    # Is the block next to clicked-block, available to be created?
-    if new_coords not in the_world or the_world[new_coords].type == 'air':
-        add_block(cur_block, *new_coords, the_world, the_base)
-
-
 def run_the_world():
 
-    global MY_BASE, MY_WORLD, PAUSE_MENU, KEYS_HIT, BLOCK_MENU
+    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU
     print("building world...")
 
     MY_BASE = ShowBase()
@@ -314,7 +265,7 @@ def run_the_world():
     setup_fog(MY_BASE, CURRENT_BLOCK)
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
 
-    setup_base_keys(MY_BASE, KEYS_HIT, call_pause_screen, handle_click,
+    setup_base_keys(MY_BASE, call_pause_screen, handle_click,
                     toggle_mouse, call_toggle_blocks, reset_stuff)
 
     setup_tasks(MY_BASE)

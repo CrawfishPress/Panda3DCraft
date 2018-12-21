@@ -23,22 +23,22 @@ import direct.showbase.ShowBaseGlobal as BG
 # noinspection PyUnresolvedReferences
 from panda3d.core import WindowProperties
 
-from src.Keys import TRANSLATE_DATA
+from src.Keys import TRANSLATE_DATA, KEYS_HIT
 
 
-def move_camera(the_base, the_keys_hit):
+def move_camera(the_base):
 
     rotate_camera(the_base)
 
-    some_keys_hit = [key_name for key_name, key_val in the_keys_hit.items() if key_val]
+    some_keys_hit = [key_name for key_name, key_val in KEYS_HIT.items() if key_val]
     if not some_keys_hit:
         return
 
     my_cam = the_base.camera
 
-    up_down_keys_hit = [key_name for key_name, key_val in the_keys_hit.items()
+    up_down_keys_hit = [key_name for key_name, key_val in KEYS_HIT.items()
                         if key_val and TRANSLATE_DATA.get(key_name, {}).get('axis', '') == 'z']
-    sideways_keys_hit = [key_name for key_name, key_val in the_keys_hit.items()
+    sideways_keys_hit = [key_name for key_name, key_val in KEYS_HIT.items()
                          if key_val and TRANSLATE_DATA.get(key_name, {}).get('axis', 'z') != 'z']
 
     if up_down_keys_hit:

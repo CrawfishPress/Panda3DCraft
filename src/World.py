@@ -10,8 +10,6 @@ from noise import snoise2
 
 from src.BlockClass import BlockClass
 
-verboseLogging = False
-
 MAX_WIDTH = 16
 MAX_LENGTH = 16
 
@@ -42,8 +40,7 @@ def write_ground_blocks(block_type, the_base):
                 for height in range(0, z + 1):
                     add_block(block_type, x, y, height, the_world, the_base)
 
-            if verboseLogging:
-                print(f"Generated [{block_type}]: [{x}, {y}, {z}]")
+            # print(f"Generated [{block_type}]: [{x}, {y}, {z}]")
 
     return the_world
 
@@ -56,3 +53,45 @@ def add_block(block_type, x, y, z, the_world, the_base):
     the_world[(x, y, z)] = BlockClass(block_type, the_base, x, y, z)
 
 
+def remove_block_object(obj, the_world, the_base):
+
+    # print(f"Left clicked a block at [{obj.getX()}, {obj.getY()}, {obj.getZ()}]")
+
+    # We have to add the Block in order to destroy it...
+    add_block('air', obj.getX(), obj.getY(), obj.getZ(), the_world, the_base)
+
+
+def add_block_object(cur_block, obj, node_path, the_world, the_base):
+
+    # print(f"Right clicked a block at [{obj.getX()}, {obj.getY()}, {obj.getZ()}],"
+    #       f" attempting to place [{cur_block}]")
+
+    moves = {
+        'west': {'delta_x': -1, 'delta_y': 0, 'delta_z': 0,
+                 'clicked': not node_path.findNetTag('westTag').isEmpty()},
+        'east': {'delta_x': 1, 'delta_y': 0, 'delta_z': 0,
+                 'clicked': not node_path.findNetTag('eastTag').isEmpty()},
+        'south': {'delta_x': 0, 'delta_y': -1, 'delta_z': 0,
+                  'clicked': not node_path.findNetTag('southTag').isEmpty()},
+        'north': {'delta_x': 0, 'delta_y': 1, 'delta_z': 0,
+                  'clicked': not node_path.findNetTag('northTag').isEmpty()},
+        'top': {'delta_x': 0, 'delta_y': 0, 'delta_z': 1,
+                'clicked': not node_path.findNetTag('topTag').isEmpty()},
+        'bot': {'delta_x': 0, 'delta_y': 0, 'delta_z': -1,
+                'clicked': not node_path.findNetTag('botTag').isEmpty()},
+        }
+
+    blocks_clicked = [one_block for one_block in moves.values() if one_block['clicked']]
+    # noinspection PyUnreachableCode
+    if __debug__:
+        assert len(blocks_clicked) == 1
+    new_block = blocks_clicked[0]
+
+    # Find coords of "new" block
+    obj_x, obj_y, obj_z = obj.getX(), obj.getY(), obj.getZ()
+    delta_x, delta_y, delta_z = new_block['delta_x'], new_block['delta_y'], new_block['delta_z']
+    new_coords = (obj_x + delta_x, obj_y + delta_y, obj_z + delta_z)
+
+    # Is the block next to clicked-block, available to be created?
+    if new_coords not in the_world or the_world[new_coords].type == 'air':
+        add_block(cur_block, *new_coords, the_world, the_base)
