@@ -1,3 +1,21 @@
+"""
+Purpose: Displays a Menu of available Block types (bitmaps), and lets the user
+click on a Block to select that type.
+
+Block bitmaps are stored in Eggs, and have the following structure:
+    gfx/btn/{block_type}_{color_type}.png
+where 'block_type' = one of the Block key-names ('dirt', etc) and
+and color_type = one of the COLORS listed below
+
+And the containing Egg is:
+    gfx/{block_type}_btn.egg
+
+To construct the Egg for the 'dirt' block:
+    cd gfx
+    egg-texture-cards -o dirt_btn.egg -p 240,240 btn/dirt_none.png btn/dirt_yellow.png btn/dirt_green.png
+
+"""
+
 from functools import lru_cache
 
 from src.BlockClass import BLOCKS
@@ -23,10 +41,13 @@ class BlockMenu(object):
                                     scale=0.075,
                                     pos=(0, 0, 0.55))
 
-        self.buttons = [BlockButton(base, self.blockScr, self.button_clicker, 'dirt', False),
-                        BlockButton(base, self.blockScr, self.button_clicker, 'bricks', False),
-                        BlockButton(base, self.blockScr, self.button_clicker, 'cobblestone', False),
-                        ]
+        block_names = [btn_key for btn_key in BLOCKS if btn_key != 'air']
+        self.buttons = [BlockButton(base, self.blockScr, self.button_clicker, block_name, False)
+                        for block_name in block_names]
+
+        for btn in self.buttons:
+            if btn.block_type == 'dirt':
+                btn.activate_me(True, ACTIVE_COLORS)
 
         self.blockScr.hide()
 
@@ -51,19 +72,19 @@ class BlockMenu(object):
     def active_block_type(self):
 
         for one_button in self.buttons:
-            if one_button.active:
+            if one_button.is_active:
                 return one_button.block_type
 
         return 'air'
 
 
 class BlockButton(object):
-    def __init__(self, base, some_parent, clicker, block_type='air', active=False):
+    def __init__(self, base, some_parent, clicker, block_type, active=False):
         self.base = base
         self.parent = some_parent
         self.block_changer = clicker
         self.block_type = block_type
-        self.active = active
+        self.is_active = active
 
         self.coords = BLOCKS[block_type]['coords']
 
@@ -83,10 +104,8 @@ class BlockButton(object):
 
     def activate_me(self, activate, active_colors):
 
-        self.active = activate
-        some_geom = create_geom(self.base, self.block_type, active_colors)
-
-        self.button["geom"] = some_geom
+        self.is_active = activate
+        self.button["geom"] = create_geom(self.base, self.block_type, active_colors)
         self.button.resetFrameSize()
 
 

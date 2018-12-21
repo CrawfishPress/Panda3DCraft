@@ -1,0 +1,87 @@
+<Comment> {
+  "egg-texture-cards -o stone_btn.egg -p 240,240 btn/stone_none.png btn/stone_yellow.png btn/stone_green.png"
+}
+<Texture> stone_yellow {
+  "btn/stone_yellow.png"
+}
+<Texture> stone_none {
+  "btn/stone_none.png"
+}
+<Texture> stone_green {
+  "btn/stone_green.png"
+}
+<Group> {
+  <Switch> { 1 }
+  <Scalar> fps { 2 }
+  <VertexPool> vpool {
+    <Vertex> 0 {
+      -0.133333333333333 0.133333333333333 0
+      <UV> { 0 1 }
+    }
+    <Vertex> 1 {
+      -0.133333333333333 -0.133333333333333 0
+      <UV> { 0 0 }
+    }
+    <Vertex> 2 {
+      0.133333333333333 -0.133333333333333 0
+      <UV> { 1 0 }
+    }
+    <Vertex> 3 {
+      0.133333333333333 0.133333333333333 0
+      <UV> { 1 1 }
+    }
+    <Vertex> 4 {
+      -0.133333333333333 0.133333333333333 0
+      <UV> { 0 1 }
+    }
+    <Vertex> 5 {
+      -0.133333333333333 -0.133333333333333 0
+      <UV> { 0 0 }
+    }
+    <Vertex> 6 {
+      0.133333333333333 -0.133333333333333 0
+      <UV> { 1 0 }
+    }
+    <Vertex> 7 {
+      0.133333333333333 0.133333333333333 0
+      <UV> { 1 1 }
+    }
+    <Vertex> 8 {
+      -0.133333333333333 0.133333333333333 0
+      <UV> { 0 1 }
+    }
+    <Vertex> 9 {
+      -0.133333333333333 -0.133333333333333 0
+      <UV> { 0 0 }
+    }
+    <Vertex> 10 {
+      0.133333333333333 -0.133333333333333 0
+      <UV> { 1 0 }
+    }
+    <Vertex> 11 {
+      0.133333333333333 0.133333333333333 0
+      <UV> { 1 1 }
+    }
+  }
+  <Group> stone_none {
+    <Polygon> {
+      <RGBA> { 1 1 1 1 }
+      <TRef> { stone_none }
+      <VertexRef> { 0 1 2 3 <Ref> { vpool } }
+    }
+  }
+  <Group> stone_yellow {
+    <Polygon> {
+      <RGBA> { 1 1 1 1 }
+      <TRef> { stone_yellow }
+      <VertexRef> { 4 5 6 7 <Ref> { vpool } }
+    }
+  }
+  <Group> stone_green {
+    <Polygon> {
+      <RGBA> { 1 1 1 1 }
+      <TRef> { stone_green }
+      <VertexRef> { 8 9 10 11 <Ref> { vpool } }
+    }
+  }
+}

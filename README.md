@@ -28,10 +28,10 @@ block-picker/Collider stuff works, and it was just easier to make two separate m
 
 #### General keys
  - *m* - toggle between Camera-Movement, and Block-Control
+ - *b* - enters/exits the Block-selection menu
  - *r* - resets camera-location to starting location
- - *ESC* - quits game (the Pause/Save-Load screen was assigned to that, now is disabled)
 
- - *1-9* change the currently-select Block type
+ - *ESC* - enters/exits the Pause/Save-Load screen
 
 #### Camera-Movement Mode
  - *a/d* - move left/right
@@ -42,10 +42,19 @@ block-picker/Collider stuff works, and it was just easier to make two separate m
  - *right-mouse-click* - places a Block of the current Type
  - *left-mouse-click* - deletes the Block where the mouse is pointing
 
+## Known Glitches
+ - When you exit Block-Selection or Pause-screen, you stay in Mouse-mode, whether
+   you were there before or not (it doesn't restore the previous mode).
+ - When you type in a Save-game name - the key-mappings aren't suspended, so typing
+   'rho' for a name, resets the view. Wups...
+ - If you delete the front-corner block, and hit *r* (reset), things go boom...
+
 ## TODO
  - Done: Fix the Pause-Screen - it broke after I changed how Camera-handling worked
+ - Done: Change Block-type selection to a visible Menu of Blocks, rather than a number.
  - Combine the two Modes, so you can move around and add blocks at the same time.
- - Change Block-type selection to a visible Menu of Blocks, rather than a number.
- - Handle re-setting the Camera to look at the closest Block, if it has been *deleted*.
+ - Handle re-setting the Camera to look at the closest Block that has not been *deleted*.
  - Refactor out all of the *global* variables.
  - Add a third-person view, so Camera can see the person moving around.
+ - Add flowing water.
+ - Add a setup.py, and put on PyPi.org?

@@ -1,29 +1,29 @@
 BASE_TEXTURES = 'gfx/tex/'
 
 BLOCKS = {
-    'air': {'hotkey': 0, 'type': 'single', 'transparent': True, 'coords': (0, 0, 0),
+    'air': {'type': 'single', 'transparent': True, 'coords': (0, 0, 0),
             'texture': None},
-    'bricks': {'hotkey': 5, 'type': 'single', 'transparent': False, 'coords': (-0.7, 0, 0),
+    'bricks': {'type': 'single', 'transparent': False, 'coords': (-0.4, 0, 0),
                'texture': BASE_TEXTURES + 'bricks.png'},
-    'cobblestone': {'hotkey': 2, 'type': 'single', 'transparent': False, 'coords': (-0.4, 0, 0),
+    'cobblestone': {'type': 'single', 'transparent': False, 'coords': (-1, 0, 0),
                     'texture': BASE_TEXTURES + 'cobblestone.png'},
-    'dirt': {'hotkey': 1, 'type': 'single', 'transparent': False, 'coords': (-1, 0, 0),
+    'dirt': {'type': 'single', 'transparent': False, 'coords': (-0.1, 0, 0),
              'texture': BASE_TEXTURES + 'dirt.png'},
-    'glass': {'hotkey': 3, 'type': 'single', 'transparent': True, 'coords': (0, 0, 0),
+    'glass': {'type': 'single', 'transparent': True, 'coords': (1.4, 0, 0),
               'texture': BASE_TEXTURES + 'glass.png'},
-    'leaves': {'hotkey': 7, 'type': 'single', 'transparent': True, 'coords': (0, 0, 0),
+    'leaves': {'type': 'single', 'transparent': True, 'coords': (1.1, 0, 0),
                'texture': BASE_TEXTURES + 'leaves.png'},
-    'planks': {'hotkey': 8, 'type': 'single', 'transparent': False, 'coords': (0, 0, 0),
+    'planks': {'type': 'single', 'transparent': False, 'coords': (0.8, 0, 0),
                'texture': BASE_TEXTURES + 'planks.png'},
-    'stone': {'hotkey': 9, 'type': 'single', 'transparent': False, 'coords': (0, 0, 0),
+    'stone': {'type': 'single', 'transparent': False, 'coords': (-0.7, 0, 0),
               'texture': BASE_TEXTURES + 'stone.png'},
 
-    'grass': {'hotkey': 4, 'type': 'multi', 'transparent': False, 'coords': (0, 0, 0),
+    'grass': {'type': 'multi', 'transparent': False, 'coords': (0.2, 0, 0),
               'texture_top': BASE_TEXTURES + 'grass_top.png',
               'texture_sid': BASE_TEXTURES + 'grass_side.png',
               'texture_bot': BASE_TEXTURES + 'grass_bot.png',
               },
-    'wood': {'hotkey': 6, 'type': 'multi', 'transparent': False, 'coords': (0, 0, 0),
+    'wood': {'type': 'multi', 'transparent': False, 'coords': (0.5, 0, 0),
              'texture_top': BASE_TEXTURES + 'wood_top.png',
              'texture_sid': BASE_TEXTURES + 'wood_side.png',
              'texture_bot': BASE_TEXTURES + 'wood_bot.png',
@@ -57,8 +57,8 @@ class BlockClass:
 
         if BLOCKS[my_type]['type'] == 'multi':
             top_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_top'])
-            side_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_bot'])
-            bot_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_sid'])
+            side_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_sid'])
+            bot_texture = self.the_base.loader.loadTexture(BLOCKS[my_type]['texture_bot'])
             texture_stage = self.model.findTextureStage('*')
             self.model.find('**/Top').setTexture(texture_stage, top_texture, 1)
             self.model.find('**/Side').setTexture(texture_stage, side_texture, 1)

@@ -18,7 +18,6 @@ from direct.showbase.ShowBase import ShowBase
 # noinspection PyUnresolvedReferences
 from panda3d.core import WindowProperties
 
-from src.BlockClass import BLOCKS
 from src.BlockMenu import BlockMenu
 from src.Keys import setup_base_keys, KEYS_HIT
 from src.World import write_ground_blocks, add_block
