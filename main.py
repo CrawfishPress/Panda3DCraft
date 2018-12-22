@@ -10,6 +10,7 @@ https://github.com/kengleason/Panda3DCraft
 
 import argparse
 from argparse import RawTextHelpFormatter
+import random
 import sys
 
 from panda3d.core import *
@@ -49,6 +50,20 @@ MOUSE_ACTIVE = False
 MY_WORLD = {}
 MY_BASE = None
 CAMERA_START_COORDS = (-10, -10, 30)
+
+ERROR_LIST = (
+    "I *told* you not to delete that block!",
+    "Well, here's another nice mess you've gotten me into...",
+    "There's one in every crowd...",
+    "Now with 30% fewer bugs - except this one!",
+    "He's dead, Jim",
+    "Sorry about that, Chief",
+    "Or was it the *red* wire?",
+    "Dave, I can feel my mind going. Dave?",
+    "It is better to burn out, than to fa~~~~~~~ <connection broken>",
+    "And now, for a final word from our sponsor...",
+    "A life is like a garden - perfect moments can be had, but not preserved, except in memory.",
+)
 
 
 class UserError(Exception):
@@ -210,7 +225,7 @@ def reset_stuff(key, value):
     try:
         foo = MY_WORLD[(0, 0, 8)].model  # Be aware this block can be *deleted*
     except AttributeError:
-        raise UserError('I *told* you not to delete that block')
+        raise UserError(random.choice(ERROR_LIST))
 
     # x, y, z = foo.getX(), foo.getY(), foo.getZ()
     # print("reset.block[0,0,8].xyz = %s, %s, %s" % (x, y, z))
@@ -306,7 +321,7 @@ def handle_cmd_options():
 
     parser.add_argument('-v', '--verbose', action="store_true", help='verbose debugging statements - TBD')
     parser.add_argument('-l', '--level', action="store_true", help='level the ground, no noisy-generation')
-    parser.add_argument('-b', '--block', default='dirt', help='set block-type for initial terrain-generation')
+    parser.add_argument('-b', '--block', default='grass', help='set block-type for initial terrain-generation')
     parser.add_argument('-p', '--play', action="store_true", help='play the game - any cmd-option will also play')
     cmd_args = parser.parse_args()
 

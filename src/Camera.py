@@ -46,15 +46,11 @@ def move_camera(the_base):
         change_loc = calculate_vertical_offset(TRANSLATE_DATA, up_down_keys_hit, foo)
         my_cam.setPos(change_loc)
 
-        return
-
     if sideways_keys_hit:
         foo = (my_cam.getX(), my_cam.getY(), my_cam.getZ())
         the_h = my_cam.getH()
         change_loc = calculate_horizontal_offset(TRANSLATE_DATA, the_h, sideways_keys_hit, foo)
         my_cam.setPos(change_loc)
-
-        return
 
 
 def rotate_camera(the_base):

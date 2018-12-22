@@ -3,6 +3,9 @@ MIT License
 Original Work: Copyright (c) 2016 Sparkpin
 Modified Work: Copyright (c) 2018 CrawfishPress
 
+Excludes all PNG files in the /gfx sub-directories, which are
+derived from Minecraft: Copyright (c) Mojang
+
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without restriction,

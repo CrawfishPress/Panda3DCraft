@@ -10,11 +10,11 @@ with Panda3D, learn the basics of it.
 
  - create a virtual environment with Python 3.6+
  - *pip install -r requirements.txt*
- - *python main.py --play --level --block grass*
+ - *python main.py --play --level --block stone*
 
 ## Command-line options
  - -l, --level, level the ground, no noisy-generation
- - -b, --block, set block-type for initial terrain-generation, default='dirt'
+ - -b, --block, set block-type for initial terrain-generation, default='grass'
  - -p, --play, play the game - any cmd-option will also play
 
 ## Usage
