@@ -52,6 +52,7 @@ block-picker/Collider stuff works, and it was just easier to make two separate m
 ## TODO
  - Done: Fix the Pause-Screen - it broke after I changed how Camera-handling worked
  - Done: Change Block-type selection to a visible Menu of Blocks, rather than a number.
+ - Done: Added level-ground option
  - Combine the two Modes, so you can move around and add blocks at the same time.
  - Handle re-setting the Camera to look at the closest Block that has not been *deleted*.
  - Refactor out all of the *global* variables.

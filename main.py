@@ -8,6 +8,10 @@ https://github.com/kengleason/Panda3DCraft
 
 """
 
+import argparse
+from argparse import RawTextHelpFormatter
+import sys
+
 from panda3d.core import *
 import panda3d.core as core
 # noinspection PyPackageRequirements
@@ -89,7 +93,7 @@ def setup_lighting(the_base):
 
 def setup_fog(the_base, cur_block):
 
-    global CUR_BLOCK_TEXT, CAMERA_START_COORDS
+    global CUR_BLOCK_TEXT
 
     fog = core.Fog("fog")
     fog.setColor(0.5294, 0.8078, 0.9215)
@@ -247,32 +251,72 @@ def toggle_mouse(key, value):
     MY_BASE.win.requestProperties(props)
 
 
-def run_the_world():
+def run_the_world(cmd_args):
 
     global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU
-    print("building world...")
+
+    if cmd_args.level:
+        level_ground = True
+        print("building world with level ground...")
+    else:
+        level_ground = False
+        print("building world with noisy ground...")
 
     MY_BASE = ShowBase()
-    BLOCK_MENU = BlockMenu(MY_BASE)
-    cur_block = BLOCK_MENU.active_block_type
-    MY_WORLD = write_ground_blocks(cur_block, MY_BASE)
-    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
-
     MY_BASE.disableMouse()
 
     BLOCK_MENU = BlockMenu(MY_BASE)
 
+    cur_block = BLOCK_MENU.active_block_type
+    MY_WORLD = write_ground_blocks(MY_BASE, cur_block, level_ground)
+
+    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
+
     setup_lighting(MY_BASE)
     setup_fog(MY_BASE, cur_block)
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
-
     setup_base_keys(MY_BASE, call_pause_screen, handle_click,
                     toggle_mouse, call_toggle_blocks, reset_stuff)
-
     setup_tasks(MY_BASE)
 
     MY_BASE.run()
 
 
+def handle_cmd_options():
+
+    usage = """
+    Usage: Play around in a simple block-world, that bears a passing resemblance
+    to Minecraft. You can:
+     - select from one of *nine* different block-types
+     - add/remove blocks
+     - save/load a game
+     - move around the world with the keyboard/mouse (mouse rotates view only)
+
+    r = resets location/camera view - hit this at start of game, if view is empty
+    m = toggles between movement (invisible mouse), and block-placement (visible mouse)
+    b = toggles block-selection menu
+    ESC = toggles pause/save-game screen
+
+    a/s/d/w = moves around horizontally
+    z/x = moves up/down (or was it down, then up?)
+    """
+
+    hp = lambda prog: RawTextHelpFormatter(prog, max_help_position=50, width=120)
+    parser = argparse.ArgumentParser(description=usage, formatter_class=hp)
+
+    parser.add_argument('-v', '--verbose', action="store_true", help='verbose debugging statements - TBD')
+    parser.add_argument('-l', '--level', action="store_true", help='level the ground, no noisy-generation')
+    parser.add_argument('-p', '--play', action="store_true", help='play the game - any cmd-option will also play')
+    cmd_args = parser.parse_args()
+
+    # You would think an empty argument list would *default* to printing help, but no...
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    return cmd_args
+
+
 if __name__ == '__main__':
-    run_the_world()
+    args = handle_cmd_options()
+    run_the_world(args)

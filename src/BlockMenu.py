@@ -50,7 +50,7 @@ class BlockMenu(object):
 
         for btn in self.buttons:
             if btn.block_type == 'dirt':
-                btn.activate_me(True, ACTIVE_COLORS)
+                btn.activate_me(True)
 
         self.blockScr.hide()
 
@@ -67,9 +67,9 @@ class BlockMenu(object):
 
         for one_button in self.buttons:
             if one_button == clicked_button:
-                clicked_button.activate_me(True, ACTIVE_COLORS)
+                clicked_button.activate_me(True)
             else:
-                one_button.activate_me(False, INACTIVE_COLORS)
+                one_button.activate_me(False)
 
     @property
     def active_block_type(self):
@@ -105,10 +105,14 @@ class BlockButton(object):
 
         self.block_changer(self)
 
-    def activate_me(self, activate, active_colors):
+    def activate_me(self, activate):
 
         self.is_active = activate
-        self.button["geom"] = create_geom(self.base, self.block_type, active_colors)
+        if activate:
+            next_colors = ACTIVE_COLORS
+        else:
+            next_colors = INACTIVE_COLORS
+        self.button["geom"] = create_geom(self.base, self.block_type, next_colors)
         self.button.resetFrameSize()
 
 

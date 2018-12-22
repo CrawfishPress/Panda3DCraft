@@ -14,7 +14,7 @@ MAX_WIDTH = 16
 MAX_LENGTH = 16
 
 
-def write_ground_blocks(block_type, the_base):
+def write_ground_blocks(the_base, block_type, level_ground):
 
     the_world = {}
     want_new_generation = False
@@ -24,6 +24,12 @@ def write_ground_blocks(block_type, the_base):
     octaves_rough = 2
     octaves_detail = 1
     freq = 16.0 * octaves_elev
+
+    if level_ground:
+        for x in range(0, MAX_WIDTH):
+            for y in range(0, MAX_LENGTH):
+                add_block(block_type, x, y, 8, the_world, the_base)
+        return the_world
 
     for x in range(0, MAX_WIDTH):
         for y in range(0, MAX_LENGTH):
