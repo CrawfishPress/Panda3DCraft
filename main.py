@@ -257,17 +257,17 @@ def run_the_world(cmd_args):
 
     if cmd_args.level:
         level_ground = True
-        print("building world with level ground...")
+        print(f"\nBuilding world with level ground, block-type = [{cmd_args.block}]")
     else:
         level_ground = False
-        print("building world with noisy ground...")
+        print(f"\nBuilding world with noisy ground, block-type = [{cmd_args.block}]")
 
     MY_BASE = ShowBase()
     MY_BASE.disableMouse()
 
-    BLOCK_MENU = BlockMenu(MY_BASE)
+    cur_block = cmd_args.block
+    BLOCK_MENU = BlockMenu(MY_BASE, cur_block)
 
-    cur_block = BLOCK_MENU.active_block_type
     MY_WORLD = write_ground_blocks(MY_BASE, cur_block, level_ground)
 
     PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
@@ -306,6 +306,7 @@ def handle_cmd_options():
 
     parser.add_argument('-v', '--verbose', action="store_true", help='verbose debugging statements - TBD')
     parser.add_argument('-l', '--level', action="store_true", help='level the ground, no noisy-generation')
+    parser.add_argument('-b', '--block', default='dirt', help='set block-type for initial terrain-generation')
     parser.add_argument('-p', '--play', action="store_true", help='play the game - any cmd-option will also play')
     cmd_args = parser.parse_args()
 

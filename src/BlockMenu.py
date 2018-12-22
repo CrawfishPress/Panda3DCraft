@@ -31,7 +31,7 @@ ACTIVE_COLORS = ('green', 'green', 'yellow')
 
 
 class BlockMenu(object):
-    def __init__(self, base):
+    def __init__(self, base, initial_block='dirt'):
         self.base = base
         self.is_visible = False
         self.blockScr = base.aspect2d.attachNewNode("pause")
@@ -49,7 +49,7 @@ class BlockMenu(object):
                         for block_name in block_names]
 
         for btn in self.buttons:
-            if btn.block_type == 'dirt':
+            if btn.block_type == initial_block:
                 btn.activate_me(True)
 
         self.blockScr.hide()

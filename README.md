@@ -10,7 +10,12 @@ with Panda3D, learn the basics of it.
 
  - create a virtual environment with Python 3.6+
  - *pip install -r requirements.txt*
- - *python main.py*
+ - *python main.py --play --level --block grass*
+
+## Command-line options
+ - -l, --level, level the ground, no noisy-generation
+ - -b, --block, set block-type for initial terrain-generation, default='dirt'
+ - -p, --play, play the game - any cmd-option will also play
 
 ## Usage
  - hit the *r* (reset) key, if necessary - sometimes the view doesn't setup right. Weird...
@@ -58,4 +63,5 @@ block-picker/Collider stuff works, and it was just easier to make two separate m
  - Refactor out all of the *global* variables.
  - Add a third-person view, so Camera can see the person moving around.
  - Add flowing water.
+ - Add torches, play with lighting.
  - Add a setup.py, and put on PyPi.org?
