@@ -1,353 +1,338 @@
-from panda3d.core import *
-from direct.gui.DirectGui import *
-from direct.showbase.ShowBase import ShowBase
-from noise import snoise2
-import os
+"""
+Purpose: learning Panda3D, by building a random block-world, that might
+bear a passing resemblance to Minecraft.
+
+Forked under MIT license, from:
+
+https://github.com/kengleason/Panda3DCraft
+
+"""
+
+import argparse
+from argparse import RawTextHelpFormatter
 import random
-from Block import *
+import sys
 
-loadPrcFile('config/general.prc')
+from panda3d.core import *
+import panda3d.core as core
+# noinspection PyPackageRequirements
+from direct.gui.DirectGui import *
+# noinspection PyPackageRequirements
+from direct.showbase.ShowBase import ShowBase
 
-if __debug__:
-    loadPrcFile('config/dev.prc')
+# noinspection PyUnresolvedReferences
+from panda3d.core import WindowProperties
 
-base = ShowBase()
+from src.BlockMenu import BlockMenu
+from src.Keys import setup_base_keys
+from src.World import write_ground_blocks, remove_block_object, add_block_object
+from src.Camera import setup_camera, move_camera
+from src.menu import PauseScreen
 
-octavesElev = 5
-octavesRough = 2
-octavesDetail = 1
-freq = 16.0 * octavesElev
+core.loadPrcFile('config/general.prc')
 
-world = {}
+# noinspection PyUnreachableCode
+if __debug__:  # True unless Python is started with -O
+    print(f"debug-mode on")
+    core.loadPrcFile('config/dev.prc')
 
-verboseLogging = False
-fancyRendering = False
-wantNewGeneration = False
-fillWorld = False
-base.setFrameRateMeter(True)
+# TODO: kill all of these Global variables
 
-paused = False
+PICKER_RAY = None
+TRAVERSER = None
+COLLISION_HANDLER = None
+PAUSE_MENU = None
+BLOCK_MENU = None
 
-inventory = [DIRT, COBBLESTONE, GLASS, GRASS, BRICKS, WOOD, LEAVES, PLANKS, STONE]
-currentBlock = inventory[0]
+CUR_BLOCK_TEXT = None
+MOUSE_ACTIVE = False
 
-currentSelectedText = DirectLabel(text = "Current block:", text_fg = (1,1,1,1), frameColor = (0,0,0,0), parent = aspect2d, scale = 0.05, pos = (0,0,-0.9))
-currentBlockText = DirectLabel(text = blockNames[currentBlock], text_fg = (1,1,1,1), frameColor = (0,0,0,0), parent = aspect2d, scale = 0.05, pos = (0,0,-0.95))
+MY_WORLD = {}
+MY_BASE = None
+CAMERA_START_COORDS = (-10, -10, 30)
 
-def pause():
-    global paused
-    paused = not paused
+ERROR_LIST = (
+    "I *told* you not to delete that block!",
+    "Well, here's another nice mess you've gotten me into...",
+    "There's one in every crowd...",
+    "Now with 30% fewer bugs - except this one!",
+    "He's dead, Jim",
+    "Sorry about that, Chief",
+    "Or was it the *red* wire?",
+    "Dave, I can feel my mind going. Dave?",
+    "It is better to burn out, than to fa~~~~~~~ <connection broken>",
+    "And now, for a final word from our sponsor...",
+    "A life is like a garden - perfect moments can be had, but not preserved, except in memory.",
+)
 
-    if paused:
-        base.disableMouse()
-        pauseScreen.showPause()
+
+class UserError(Exception):
+    pass
+
+
+def setup_lighting(the_base):
+
+    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER
+    # fancy_rendering = False
+
+    alight = core.AmbientLight('alight')
+    alight.setColor(core.VBase4(0.6, 0.6, 0.6, 1))
+    alnp = the_base.render.attachNewNode(alight)
+    the_base.render.setLight(alnp)
+    slight = core.Spotlight('slight')
+    slight.setColor(core.VBase4(1, 1, 1, 1))
+    lens = core.PerspectiveLens()
+    slight.setLens(lens)
+    slnp = the_base.render.attachNewNode(slight)
+    slnp.setPos(8, -9, 128)
+    slnp.setHpr(0, 270, 0)
+    the_base.render.setLight(slnp)
+
+    # I have no idea what this does, so it must not be important...
+    # if fancy_rendering:
+    #     # Use a 512x512 resolution shadow map
+    #     slight.setShadowCaster(True, 512, 512)
+    #     # Enable the shader generator for the receiving nodes
+    #     the_base.render.setShaderAuto()
+
+    TRAVERSER = core.CollisionTraverser()
+    COLLISION_HANDLER = core.CollisionHandlerQueue()
+
+    picker_node = core.CollisionNode('mouseRay')
+    picker_np = the_base.camera.attachNewNode(picker_node)
+    picker_node.setFromCollideMask(core.GeomNode.getDefaultCollideMask())
+    PICKER_RAY = core.CollisionRay()
+    picker_node.addSolid(PICKER_RAY)
+    TRAVERSER.addCollider(picker_np, COLLISION_HANDLER)
+
+
+def setup_fog(the_base, cur_block):
+
+    global CUR_BLOCK_TEXT
+
+    fog = core.Fog("fog")
+    fog.setColor(0.5294, 0.8078, 0.9215)
+    fog.setExpDensity(0.015)
+    the_base.render.setFog(fog)
+
+    the_base.setFrameRateMeter(True)
+
+    CUR_BLOCK_TEXT = DirectLabel(text=cur_block, text_fg=(1, 1, 1, 1),
+                                 frameColor=(0, 0, 0, 0),
+                                 parent=the_base.aspect2d, scale=0.05, pos=(0, 0, -0.95))
+
+
+def setup_tasks(the_base):
+
+    the_base.taskMgr.add(camera_mangler, "Moving_Camera", appendTask=True)
+
+
+def camera_mangler(task):
+    """ This is somewhat kludgy - originally I had the taskMgr directly call rotate_camera(),
+        and passing it the parameters. But it turns out that the parameters don't *change*
+        (of course), and I needed MOUSE_ACTIVE to be updated.
+    """
+    global MY_BASE, MOUSE_ACTIVE
+
+    m_node = MY_BASE.mouseWatcherNode
+
+    if MOUSE_ACTIVE or not m_node.hasMouse():
+        return task.cont
+
+    move_camera(MY_BASE)
+
+    return task.cont
+
+
+def handle_click(right_click=False):
+
+    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, MOUSE_ACTIVE
+
+    if PAUSE_MENU.is_paused:
+        return
+
+    if not MY_BASE.mouseWatcherNode.hasMouse():
+        return
+
+    if not MOUSE_ACTIVE:
+        return
+
+    # x, y, z = MY_BASE.camera.getX(), MY_BASE.camera.getY(), MY_BASE.camera.getZ()
+    # h, p, r = MY_BASE.camera.getR(), MY_BASE.camera.getP(), MY_BASE.camera.getR()
+    # print(f"handle_click.camera = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
+
+    mpos = MY_BASE.mouseWatcherNode.getMouse()
+    PICKER_RAY.setFromLens(MY_BASE.camNode, mpos.getX(), mpos.getY())
+
+    TRAVERSER.traverse(MY_BASE.render)
+    if COLLISION_HANDLER.getNumEntries() <= 0:
+        return
+
+    COLLISION_HANDLER.sortEntries()
+    picked_obj = COLLISION_HANDLER.getEntry(0).getIntoNodePath()
+    picked_obj = picked_obj.findNetTag('blockTag')
+    if picked_obj.isEmpty():
+        return
+
+    if right_click:
+        add_block_object(BLOCK_MENU.active_block_type, picked_obj,
+                         COLLISION_HANDLER.getEntry(0).getIntoNodePath(),
+                         MY_WORLD, MY_BASE)
     else:
-        base.enableMouse()
-        pauseScreen.hide()
+        remove_block_object(picked_obj, MY_WORLD, MY_BASE)
 
-class PauseScreen:
 
-    def __init__(self):
-        self.pauseScr = aspect2d.attachNewNode("pause") # This is used so that everything can be stashed at once... except for dim, which is on render2d
-        self.loadScr = aspect2d.attachNewNode("load") # It also helps for flipping between screens
-        self.saveScr = aspect2d.attachNewNode("save")
+def call_pause_screen():
+    """ This is a little kludgy, since I activate the Mouse, if needed,
+        so the Pause screen can work, but don't de-activate it if it was
+        already inactive. Hey, the player can just hit the 'm' key again...
+    """
+    global MOUSE_ACTIVE, MY_BASE, PAUSE_MENU
 
-        cm = CardMaker('card')
-        self.dim = render2d.attachNewNode(cm.generate())
-        self.dim.setPos(-1, 0, -1)
-        self.dim.setScale(2)
-        self.dim.setTransparency(1)
-        self.dim.setColor(0, 0, 0, 0.5)
+    if not MOUSE_ACTIVE:
+        toggle_mouse('m', True)
 
-        self.buttonModel = loader.loadModel('gfx/button')
-        inputTexture = loader.loadTexture('gfx/tex/button_press.png')
+    PAUSE_MENU.pause()
 
-        # Pause Screen
-        self.unpauseButton = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            relief = None, parent = self.pauseScr, scale = 0.5, pos = (0, 0, 0.3), text = "Resume Game", text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = pause)
-        self.saveButton = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            relief = None, parent = self.pauseScr, scale = 0.5, pos = (0, 0, 0.15), text = "Save Game", text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = self.showSave)
-        self.loadButton = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            relief = None, parent = self.pauseScr, scale = 0.5, pos = (0, 0, -0.15), text = "Load Game", text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = self.showLoad)
-        self.exitButton = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            relief = None, parent = self.pauseScr, scale = 0.5, pos = (0, 0, -0.3), text = "Quit Game", text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = exit)
 
-        # Save Screen
-        self.saveText = DirectLabel(text = "Type in a name for your world", text_fg = (1,1,1,1), frameColor = (0,0,0,0), parent = self.saveScr, scale = 0.075, pos = (0,0,0.35))
-        self.saveText2 = DirectLabel(text = "", text_fg = (1,1,1,1), frameColor = (0,0,0,0), parent = self.saveScr, scale = 0.06, pos = (0,0,-0.45))
-        self.saveName = DirectEntry(text = "", scale= .15, command=self.save, initialText="My World", numLines = 1, focus=1, frameTexture = inputTexture, parent = self.saveScr, text_fg = (1,1,1,1),
-            pos = (-0.6, 0, 0.1), text_scale = 0.75)
-        self.saveGameBtn = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            relief = None, parent = self.saveScr, scale = 0.5, pos = (0, 0, -0.1), text = "Save", text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = self.save)
-        self.backButton = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            relief = None, parent = self.saveScr, scale = 0.5, pos = (0, 0, -0.25), text = "Back", text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = self.showPause)
+def call_toggle_blocks(key, value):
+    global MY_BASE, MOUSE_ACTIVE, BLOCK_MENU, CUR_BLOCK_TEXT
 
-        # Load Screen
-        numItemsVisible = 3
-        itemHeight = 0.15
+    if key != 'b' or not value:
+        return
 
-        self.loadList = DirectScrolledList(
-            decButton_pos= (0.35, 0, 0.5),
-            decButton_text = "^",
-            decButton_text_scale = 0.04,
-            decButton_text_pos = (0, -0.025),
-            decButton_text_fg = (1, 1, 1, 1),
-            decButton_borderWidth = (0.005, 0.005),
-            decButton_scale = (1.5, 1, 2),
-            decButton_geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            decButton_geom_scale = 0.1,
-            decButton_relief = None,
+    if not MOUSE_ACTIVE:
+        toggle_mouse('m', True)
 
-            incButton_pos= (0.35, 0, 0),
-            incButton_text = "^",
-            incButton_text_scale = 0.04,
-            incButton_text_pos = (0, -0.025),
-            incButton_text_fg = (1, 1, 1, 1),
-            incButton_borderWidth = (0.005, 0.005),
-            incButton_hpr = (0,180,0),
-            incButton_scale = (1.5, 1, 2),
-            incButton_geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            incButton_geom_scale = 0.1,
-            incButton_relief = None,
+    BLOCK_MENU.toggle_menu()
 
-            frameSize = (-0.4, 1.1, -0.1, 0.59),
-            frameTexture = inputTexture,
-            frameColor = (1, 1, 1, 0.75),
-            pos = (-0.45, 0, -0.25),
-            scale = 1.25,
-            numItemsVisible = numItemsVisible,
-            forceHeight = itemHeight,
-            itemFrame_frameSize = (-0.2, 0.2, -0.37, 0.11),
-            itemFrame_pos = (0.35, 0, 0.4),
-            itemFrame_frameColor = (0,0,0,0),
-            parent = self.loadScr
-        )
-        self.backButton = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-            relief = None, parent = self.loadScr, scale = 0.5, pos = (0, 0, -0.5), text = "Back", text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = self.showPause)
-        self.loadText = DirectLabel(text = "Select World", text_fg = (1,1,1,1), frameColor = (0,0,0,0), parent = self.loadScr, scale = 0.075, pos = (0,0,0.55))
-        self.loadText2 = DirectLabel(text = "", text_fg = (1,1,1,1), frameColor = (0,0,0,0), parent = self.loadScr, scale = 0.075, pos = (0,0,-0.7))
+    # If menu turned off, set the new block-type
+    if not BLOCK_MENU.is_visible:
+        cur_block_name = BLOCK_MENU.active_block_type
+        CUR_BLOCK_TEXT["text"] = cur_block_name
 
-        self.hide()
 
-    def showPause(self):
-        self.saveScr.stash()
-        self.loadScr.stash()
-        self.pauseScr.unstash()
-        self.dim.unstash()
+def reset_stuff(key, value):
+    """ De-bouncing the 'r' key
+    """
+    global MY_BASE, MY_WORLD, CAMERA_START_COORDS
 
-    def showSave(self):
-        self.pauseScr.stash()
-        self.saveScr.unstash()
-        self.saveText2['text'] = ""
+    if key != 'r' or not value:
+        return
 
-    def showLoad(self):
-        self.pauseScr.stash()
-        self.loadScr.unstash()
-        self.loadText2['text'] = ""
-
-        self.loadList.removeAndDestroyAllItems()
-
-        f = []
-        if not os.path.exists('saves/'):
-            os.makedirs('saves/')
-        for (dirpath, dirnames, filenames) in os.walk('saves/'):
-            f.extend(filenames)
-            break
-
-        for file in f:
-            l = DirectButton(geom = (self.buttonModel.find('**/button_up'), self.buttonModel.find('**/button_press'), self.buttonModel.find('**/button_over'), self.buttonModel.find('**/button_disabled')),
-                relief = None, scale = 0.5, pos = (0, 0, -0.75), text = file.strip('.sav'), text_fg = (1,1,1,1), text_scale = 0.1, text_pos = (0, -0.04), command = self.load, extraArgs = [file])
-            self.loadList.addItem(l)
-
-    def save(self, worldName = None):
-        self.saveText2['text'] = "Saving..."
-        if worldName == None:
-            worldName = self.saveName.get(True)
-        print "Saving %s..." % worldName
-        dest = 'saves/%s.sav' % worldName
-        dir = os.path.dirname(dest)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        try:
-            f = open(dest, 'wt')
-        except IOError:
-            self.saveText2['text'] = "Could not save. Make sure the world name does not contain the following characters: \\ / : * ? \" < > |"
-            print "Failed!"
-            return
-        for key in world:
-            if world[key].type == AIR:
-                continue
-            f.write(str(key) + ':')
-            f.write(str(world[key].type) + '\n')
-        f.close()
-        self.saveText2['text'] = "Saved!"
-        print "Saved!"
-
-    def load(self, worldName):
-        self.loadText2['text'] = "Loading..."
-        print "Loading..."
-        f = open('saves/%s' % worldName, 'r')
-        toLoad = f.read().split('\n')
-        toLoad.pop() # get rid of newline
-
-        for key in world:
-            addBlock(AIR, key[0], key[1], key[2])
-
-        world.clear()
-
-        for key in toLoad:
-            key = key.split(':')
-            posTup = eval(key[0])
-            addBlock(int(key[1]), posTup[0], posTup[1], posTup[2])
-        f.close()
-        self.loadText2['text'] = "Loaded!"
-        print "Loaded!"
-
-    def hide(self):
-        self.pauseScr.stash()
-        self.loadScr.stash()
-        self.saveScr.stash()
-        self.dim.stash()
-
-pauseScreen = PauseScreen()
-
-def addBlock(blockType,x,y,z):
+    # Point Camera at some base Block
+    MY_BASE.camera.setPos(CAMERA_START_COORDS)
     try:
-        world[(x,y,z)].cleanup()
-    except:
-        pass
-    block = Block(blockType, x, y, z)
-    world[(x,y,z)] = block
-    return
+        foo = MY_WORLD[(0, 0, 8)].model  # Be aware this block can be *deleted*
+    except AttributeError:
+        raise UserError(random.choice(ERROR_LIST))
 
-for x in xrange(0, 16):
-    for y in xrange(0, 16):
-        amplitude = random.randrange(0.0,5.0)
-        blockType = DIRT
-        if wantNewGeneration:
-            z = max(min(int(snoise2(x / freq, y / freq, octavesElev)+(snoise2(x / freq, y / freq, octavesRough)*snoise2(x / freq, y / freq, octavesDetail))*64+64), 128), 0)
-            addBlock(blockType,x,y,z)
-        else:
-            z = max((int(snoise2(x / freq, y / freq, 5) * amplitude)+8), 0)
-            addBlock(blockType,x,y,z)
-        if fillWorld:
-            for height in xrange(0, z+1):
-                addBlock(blockType,x,y,height)
-        if verboseLogging:
-            print "Generated %s at (%d, %d, %d)" % (blockNames[blockType], x, y, z)
+    # x, y, z = foo.getX(), foo.getY(), foo.getZ()
+    # print("reset.block[0,0,8].xyz = %s, %s, %s" % (x, y, z))
+    MY_BASE.camera.setHpr(0, -37, 0)
+    MY_BASE.camera.lookAt(foo)
 
-alight = AmbientLight('alight')
-alight.setColor(VBase4(0.6, 0.6, 0.6, 1))
-alnp = render.attachNewNode(alight)
-render.setLight(alnp)
-slight = Spotlight('slight')
-slight.setColor(VBase4(1, 1, 1, 1))
-lens = PerspectiveLens()
-slight.setLens(lens)
-slnp = render.attachNewNode(slight)
-slnp.setPos(8, -9, 128)
-slnp.setHpr(0,270,0)
-render.setLight(slnp)
+    # x, y, z = MY_BASE.camera.getX(), MY_BASE.camera.getY(), MY_BASE.camera.getZ()
+    # h, p, r = MY_BASE.camera.getR(), MY_BASE.camera.getP(), MY_BASE.camera.getR()
+    # print(f"camera.rs = [{x}, {y}, {z}]: [{h:3.1f}, {p:3.1f}, {r:3.1f}]")
 
-if fancyRendering:
-    # Use a 512x512 resolution shadow map
-    slight.setShadowCaster(True, 512, 512)
-    # Enable the shader generator for the receiving nodes
-    render.setShaderAuto()
+    # MY_BASE.win.movePointer(0, int(MY_BASE.win.getXSize() / 2), int(MY_BASE.win.getYSize() / 2))
 
-traverser = CollisionTraverser()
-handler = CollisionHandlerQueue()
 
-pickerNode = CollisionNode('mouseRay')
-pickerNP = camera.attachNewNode(pickerNode)
-pickerNode.setFromCollideMask(GeomNode.getDefaultCollideMask())
-pickerRay = CollisionRay()
-pickerNode.addSolid(pickerRay)
-traverser.addCollider(pickerNP, handler)
+def toggle_mouse(key, value):
+    """ I handle this outside of the original update_key() function, because I'm not
+        sure otherwise how to handle key debouncing. If you hold down "m", you get a stream
+        of "m" events, but when you release the key, you get an "m" event instead of an "m-up"
+        event.
+    """
+    global MY_BASE, MOUSE_ACTIVE
 
-def handlePick(right=False):
-    if paused:
-        return # no
+    if key != 'm' or not value:
+        return
 
-    if base.mouseWatcherNode.hasMouse():
-        mpos = base.mouseWatcherNode.getMouse()
-        pickerRay.setFromLens(base.camNode, mpos.getX(), mpos.getY())
+    MOUSE_ACTIVE = not MOUSE_ACTIVE
+    # print("switching mouse.active to %s" % MOUSE_ACTIVE)
 
-        traverser.traverse(render)
-        if handler.getNumEntries() > 0:
-            handler.sortEntries()
-            pickedObj = handler.getEntry(0).getIntoNodePath()
-            pickedObj = pickedObj.findNetTag('blockTag')
-            if not pickedObj.isEmpty():
-                if right:
-                    handleRightPickedObject(pickedObj, handler.getEntry(0).getIntoNodePath().findNetTag('westTag').isEmpty(),
-                        handler.getEntry(0).getIntoNodePath().findNetTag('northTag').isEmpty(), handler.getEntry(0).getIntoNodePath().findNetTag('eastTag').isEmpty(),
-                        handler.getEntry(0).getIntoNodePath().findNetTag('southTag').isEmpty(), handler.getEntry(0).getIntoNodePath().findNetTag('topTag').isEmpty(),
-                        handler.getEntry(0).getIntoNodePath().findNetTag('botTag').isEmpty())
-                else:
-                    handlePickedObject(pickedObj)
+    props = WindowProperties()
+    if MOUSE_ACTIVE:
+        # print("Mouse now ON")
+        props.setCursorHidden(False)
+        props.setMouseMode(WindowProperties.M_absolute)
+    else:
+        # print("Mouse now OFF")
+        props.setCursorHidden(True)
+        props.setMouseMode(WindowProperties.M_relative)
 
-def hotbarSelect(slot):
-    global currentBlock
-    currentBlock = inventory[slot-1]
-    currentBlockText["text"] = blockNames[currentBlock]
-    if verboseLogging:
-        print "Selected hotbar slot %d" % slot
-        print "Current block: %s" % blockNames[currentBlock]
+    MY_BASE.win.requestProperties(props)
 
-base.accept('mouse1', handlePick)
-base.accept('mouse3', handlePick, extraArgs=[True])
-base.accept('escape', pause)
-base.accept('1', hotbarSelect, extraArgs=[1])
-base.accept('2', hotbarSelect, extraArgs=[2])
-base.accept('3', hotbarSelect, extraArgs=[3])
-base.accept('4', hotbarSelect, extraArgs=[4])
-base.accept('5', hotbarSelect, extraArgs=[5])
-base.accept('6', hotbarSelect, extraArgs=[6])
-base.accept('7', hotbarSelect, extraArgs=[7])
-base.accept('8', hotbarSelect, extraArgs=[8])
-base.accept('9', hotbarSelect, extraArgs=[9])
 
-def handlePickedObject(obj):
-    if verboseLogging:
-        print "Left clicked a block at %d, %d, %d" % (obj.getX(), obj.getY(), obj.getZ())
-    addBlock(AIR, obj.getX(), obj.getY(), obj.getZ())
+def run_the_world(cmd_args):
 
-def handleRightPickedObject(obj, west, north, east, south, top, bot):
-    if verboseLogging:
-        print "Right clicked a block at %d, %d, %d, attempting to place %s" % (obj.getX(), obj.getY(), obj.getZ(), blockNames[currentBlock])
-    try:
-        # not [block face] checks to see if the user clicked on [block face]. this is not confusing at all.
-        if world[(obj.getX()-1, obj.getY(), obj.getZ())].type == AIR and not west:
-            addBlock(currentBlock, obj.getX()-1, obj.getY(), obj.getZ())
-        elif world[(obj.getX()+1, obj.getY(), obj.getZ())].type == AIR and not east:
-            addBlock(currentBlock, obj.getX()+1, obj.getY(), obj.getZ())
-        elif world[(obj.getX(), obj.getY()-1, obj.getZ())].type == AIR and not south:
-            addBlock(currentBlock, obj.getX(), obj.getY()-1, obj.getZ())
-        elif world[(obj.getX(), obj.getY()+1, obj.getZ())].type == AIR and not north:
-            addBlock(currentBlock, obj.getX(), obj.getY()+1, obj.getZ())
-        elif world[(obj.getX(), obj.getY(), obj.getZ()+1)].type == AIR and not top:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ()+1)
-        elif world[(obj.getX(), obj.getY(), obj.getZ()-1)].type == AIR and not bot:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ()-1)
-    except KeyError:
-        if not west:
-            addBlock(currentBlock, obj.getX()-1, obj.getY(), obj.getZ())
-        elif not east:
-            addBlock(currentBlock, obj.getX()+1, obj.getY(), obj.getZ())
-        elif not south:
-            addBlock(currentBlock, obj.getX(), obj.getY()-1, obj.getZ())
-        elif not north:
-            addBlock(currentBlock, obj.getX(), obj.getY()+1, obj.getZ())
-        elif not top:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ()+1)
-        elif not bot:
-            addBlock(currentBlock, obj.getX(), obj.getY(), obj.getZ()-1)
+    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU
 
-fog = Fog("fog")
-fog.setColor(0.5294, 0.8078, 0.9215)
-fog.setExpDensity(0.015)
-render.setFog(fog)
-base.camLens.setFar(256)
+    if cmd_args.level:
+        level_ground = True
+        print(f"\nBuilding world with level ground, block-type = [{cmd_args.block}]")
+    else:
+        level_ground = False
+        print(f"\nBuilding world with noisy ground, block-type = [{cmd_args.block}]")
 
-base.run()
+    MY_BASE = ShowBase()
+    MY_BASE.disableMouse()
+
+    cur_block = cmd_args.block
+    BLOCK_MENU = BlockMenu(MY_BASE, cur_block)
+
+    MY_WORLD = write_ground_blocks(MY_BASE, cur_block, level_ground)
+
+    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
+
+    setup_lighting(MY_BASE)
+    setup_fog(MY_BASE, cur_block)
+    setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
+    setup_base_keys(MY_BASE, call_pause_screen, handle_click,
+                    toggle_mouse, call_toggle_blocks, reset_stuff)
+    setup_tasks(MY_BASE)
+
+    MY_BASE.run()
+
+
+def handle_cmd_options():
+
+    usage = """
+    Usage: Play around in a simple block-world, that bears a passing resemblance
+    to Minecraft. You can:
+     - select from one of *nine* different block-types
+     - add/remove blocks
+     - save/load a game
+     - move around the world with the keyboard/mouse (mouse rotates view only)
+
+    r = resets location/camera view - hit this at start of game, if view is empty
+    m = toggles between movement (invisible mouse), and block-placement (visible mouse)
+    b = toggles block-selection menu
+    ESC = toggles pause/save-game screen
+
+    a/s/d/w = moves around horizontally
+    z/x = moves up/down (or was it down, then up?)
+    """
+
+    hp = lambda prog: RawTextHelpFormatter(prog, max_help_position=50, width=120)
+    parser = argparse.ArgumentParser(description=usage, formatter_class=hp)
+
+    parser.add_argument('-v', '--verbose', action="store_true", help='verbose debugging statements - TBD')
+    parser.add_argument('-l', '--level', action="store_true", help='level the ground, no noisy-generation')
+    parser.add_argument('-b', '--block', default='grass', help='set block-type for initial terrain-generation')
+    parser.add_argument('-p', '--play', action="store_true", help='play the game - any cmd-option will also play')
+    cmd_args = parser.parse_args()
+
+    # You would think an empty argument list would *default* to printing help, but no...
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    return cmd_args
+
+
+if __name__ == '__main__':
+    args = handle_cmd_options()
+    run_the_world(args)

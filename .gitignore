@@ -53,3 +53,6 @@ Temporary Items
 # Bytecode
 *.pyc
 *.pyo
+
+# PyCharm files
+.idea
