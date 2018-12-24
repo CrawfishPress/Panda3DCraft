@@ -89,7 +89,7 @@ def rotate_camera(the_base):
 
 def setup_camera(the_base, the_world, camera_start_coords):
 
-    the_base.camLens.setFar(256)
+    # the_base.camLens.setFar(256)  # SkyBoxes also don't like this
     the_base.camera.setPos(camera_start_coords)
     # the_base.camera.setHpr(0, -37, 0)  # This didn't seem to work, so just point at a Block.
     foo = the_world[(0, 0, 8)].model

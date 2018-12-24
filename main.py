@@ -49,6 +49,10 @@ MOUSE_ACTIVE = False
 
 MY_WORLD = {}
 MY_BASE = None
+
+SKY_BOX = None  # Yay - yet another Global...
+SUB_TERRAIN = None
+
 CAMERA_START_COORDS = (-10, -10, 30)
 
 ERROR_LIST = (
@@ -110,10 +114,11 @@ def setup_fog(the_base, cur_block):
 
     global CUR_BLOCK_TEXT
 
-    fog = core.Fog("fog")
-    fog.setColor(0.5294, 0.8078, 0.9215)
-    fog.setExpDensity(0.015)
-    the_base.render.setFog(fog)
+    # It turns out that SkyBoxes do not like the Fog...
+    # fog = core.Fog("fog")
+    # fog.setColor(0.5294, 0.8078, 0.9215)
+    # fog.setExpDensity(0.015)
+    # the_base.render.setFog(fog)
 
     the_base.setFrameRateMeter(True)
 
@@ -123,8 +128,11 @@ def setup_fog(the_base, cur_block):
 
 
 def setup_tasks(the_base):
+    global SKY_BOX
 
     the_base.taskMgr.add(camera_mangler, "Moving_Camera", appendTask=True)
+    if SKY_BOX:
+        the_base.taskMgr.add(skybox_task, "SkyBox Task")
 
 
 def camera_mangler(task):
@@ -266,9 +274,27 @@ def toggle_mouse(key, value):
     MY_BASE.win.requestProperties(props)
 
 
+def setup_skybox(the_base):
+    global SKY_BOX
+
+    SKY_BOX = the_base.loader.loadModel('sky_box.bam')
+    SKY_BOX.setBin('background', 1)
+    SKY_BOX.setDepthWrite(False)
+    SKY_BOX.setShaderOff()
+    SKY_BOX.setAlphaScale(0.5)
+    SKY_BOX.reparentTo(the_base.render)
+
+
+def skybox_task(task):
+    global SKY_BOX, MY_BASE
+
+    SKY_BOX.setPos(MY_BASE.camera, 0, 0, 0)
+    return task.cont
+
+
 def run_the_world(cmd_args):
 
-    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU
+    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, SUB_TERRAIN
 
     if cmd_args.level:
         level_ground = True
@@ -279,6 +305,14 @@ def run_the_world(cmd_args):
 
     MY_BASE = ShowBase()
     MY_BASE.disableMouse()
+
+    # Dumping in a sample Model for testing - it actually looks pretty funny there.
+    # GROUND_MODEL = "gfx/environment.egg"
+    # environ = MY_BASE.loader.loadModel(GROUND_MODEL)
+    # environ.reparentTo(MY_BASE.render)
+    # environ.setPos(0, 0, 0)
+    # environ.setScale(0.01)
+    # SUB_TERRAIN = environ
 
     cur_block = cmd_args.block
     BLOCK_MENU = BlockMenu(MY_BASE, cur_block)
@@ -292,6 +326,8 @@ def run_the_world(cmd_args):
     setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
     setup_base_keys(MY_BASE, call_pause_screen, handle_click,
                     toggle_mouse, call_toggle_blocks, reset_stuff)
+    if cmd_args.skybox:
+        setup_skybox(MY_BASE)
     setup_tasks(MY_BASE)
 
     MY_BASE.run()
@@ -321,6 +357,7 @@ def handle_cmd_options():
 
     parser.add_argument('-v', '--verbose', action="store_true", help='verbose debugging statements - TBD')
     parser.add_argument('-l', '--level', action="store_true", help='level the ground, no noisy-generation')
+    parser.add_argument('-s', '--skybox', action="store_true", help='uses a simple SkyBox, mostly for testing')
     parser.add_argument('-b', '--block', default='grass', help='set block-type for initial terrain-generation')
     parser.add_argument('-p', '--play', action="store_true", help='play the game - any cmd-option will also play')
     cmd_args = parser.parse_args()

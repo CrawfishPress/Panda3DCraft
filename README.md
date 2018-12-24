@@ -14,6 +14,7 @@ with Panda3D, learn the basics of it.
 
 ## Command-line options
  - -l, --level, level the ground, no noisy-generation
+ - -s, --skybox, uses a simple SkyBox, mostly for testing
  - -b, --block, set block-type for initial terrain-generation, default='grass'
  - -p, --play, play the game - any cmd-option will also play
 
