@@ -10,9 +10,13 @@ https://github.com/kengleason/Panda3DCraft
 
 import argparse
 from argparse import RawTextHelpFormatter
+from contextlib import suppress
+import json
 import random
 import sys
 
+# noinspection PyUnresolvedReferences
+from panda3d.core import RenderModeAttrib
 from panda3d.core import *
 import panda3d.core as core
 # noinspection PyPackageRequirements
@@ -25,7 +29,7 @@ from panda3d.core import WindowProperties
 
 from src.BlockMenu import BlockMenu
 from src.Keys import setup_base_keys
-from src.World import write_ground_blocks, remove_block_object, add_block_object
+from src.World import write_ground_blocks, remove_block_object, get_new_block_coords, is_new_block_free, add_block
 from src.Camera import setup_camera, move_camera
 from src.menu import PauseScreen
 
@@ -49,6 +53,8 @@ MOUSE_ACTIVE = False
 
 MY_WORLD = {}
 MY_BASE = None
+
+WIREFRAMES = []
 
 SKY_BOX = None  # Yay - yet another Global...
 SUB_TERRAIN = None
@@ -131,6 +137,7 @@ def setup_tasks(the_base):
     global SKY_BOX
 
     the_base.taskMgr.add(camera_mangler, "Moving_Camera", appendTask=True)
+    the_base.taskMgr.add(mouse_wrangler, "Handling_Mouse", appendTask=True)
     if SKY_BOX:
         the_base.taskMgr.add(skybox_task, "SkyBox Task")
 
@@ -148,6 +155,58 @@ def camera_mangler(task):
         return task.cont
 
     move_camera(MY_BASE)
+
+    return task.cont
+
+
+def cleanup_wireframes():
+    global WIREFRAMES, MY_WORLD
+
+    for some_obj in WIREFRAMES:
+        cur_coords = (some_obj.x, some_obj.y, some_obj.z)
+        with suppress(KeyError):
+            del MY_WORLD[cur_coords]
+        with suppress(KeyError, AttributeError):
+            some_obj.cleanup()
+        WIREFRAMES.remove(some_obj)
+
+
+def mouse_wrangler(task):
+    """ Adds a Wireframe Block to the World, for purposes of showing where the mouse is
+        pointing, and thereby where the next block will be added.
+    """
+    global MY_BASE, MOUSE_ACTIVE, PICKER_RAY, TRAVERSER, COLLISION_HANDLER, WIREFRAMES
+
+    m_node = MY_BASE.mouseWatcherNode
+
+    if not MOUSE_ACTIVE or not m_node.hasMouse():
+        cleanup_wireframes()
+        return task.cont
+
+    mpos = MY_BASE.mouseWatcherNode.getMouse()
+    PICKER_RAY.setFromLens(MY_BASE.camNode, mpos.getX(), mpos.getY())
+
+    TRAVERSER.traverse(MY_BASE.render)
+    if COLLISION_HANDLER.getNumEntries() <= 0:
+        cleanup_wireframes()
+        return task.cont
+
+    COLLISION_HANDLER.sortEntries()
+    picked_node_path = COLLISION_HANDLER.getEntry(0).getIntoNodePath()
+    # Is this clicked-object a Block or not?
+    if not picked_node_path.hasNetTag('blockTag'):
+        cleanup_wireframes()
+        return task.cont
+
+    new_coords = get_new_block_coords(picked_node_path)
+    block_free = is_new_block_free(new_coords, MY_WORLD)
+
+    if block_free:
+        cleanup_wireframes()
+        new_block = add_block(BLOCK_MENU.active_block_type, *new_coords, MY_WORLD, MY_BASE)
+        new_block.model.setCollideMask(core.BitMask32(0x10))
+        new_block.model.setRenderMode(RenderModeAttrib.M_wireframe, 2)
+        WIREFRAMES.append(new_block)
 
     return task.cont
 
@@ -177,17 +236,19 @@ def handle_click(right_click=False):
         return
 
     COLLISION_HANDLER.sortEntries()
-    picked_obj = COLLISION_HANDLER.getEntry(0).getIntoNodePath()
-    picked_obj = picked_obj.findNetTag('blockTag')
-    if picked_obj.isEmpty():
+    picked_node_path = COLLISION_HANDLER.getEntry(0).getIntoNodePath()
+    # Is this clicked-object a Block or not?
+    if not picked_node_path.hasNetTag('blockTag'):
         return
 
+    cleanup_wireframes()
     if right_click:
-        add_block_object(BLOCK_MENU.active_block_type, picked_obj,
-                         COLLISION_HANDLER.getEntry(0).getIntoNodePath(),
-                         MY_WORLD, MY_BASE)
+        new_coords = get_new_block_coords(picked_node_path)
+        block_free = is_new_block_free(new_coords, MY_WORLD)
+        if block_free:
+            add_block(BLOCK_MENU.active_block_type, *new_coords, MY_WORLD, MY_BASE)
     else:
-        remove_block_object(picked_obj, MY_WORLD, MY_BASE)
+        remove_block_object(picked_node_path, MY_WORLD, MY_BASE)
 
 
 def call_pause_screen():
@@ -292,47 +353,6 @@ def skybox_task(task):
     return task.cont
 
 
-def run_the_world(cmd_args):
-
-    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, SUB_TERRAIN
-
-    if cmd_args.level:
-        level_ground = True
-        print(f"\nBuilding world with level ground, block-type = [{cmd_args.block}]")
-    else:
-        level_ground = False
-        print(f"\nBuilding world with noisy ground, block-type = [{cmd_args.block}]")
-
-    MY_BASE = ShowBase()
-    MY_BASE.disableMouse()
-
-    # Dumping in a sample Model for testing - it actually looks pretty funny there.
-    # GROUND_MODEL = "gfx/environment.egg"
-    # environ = MY_BASE.loader.loadModel(GROUND_MODEL)
-    # environ.reparentTo(MY_BASE.render)
-    # environ.setPos(0, 0, 0)
-    # environ.setScale(0.01)
-    # SUB_TERRAIN = environ
-
-    cur_block = cmd_args.block
-    BLOCK_MENU = BlockMenu(MY_BASE, cur_block)
-
-    MY_WORLD = write_ground_blocks(MY_BASE, cur_block, level_ground)
-
-    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
-
-    setup_lighting(MY_BASE)
-    setup_fog(MY_BASE, cur_block)
-    setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
-    setup_base_keys(MY_BASE, call_pause_screen, handle_click,
-                    toggle_mouse, call_toggle_blocks, reset_stuff)
-    if cmd_args.skybox:
-        setup_skybox(MY_BASE)
-    setup_tasks(MY_BASE)
-
-    MY_BASE.run()
-
-
 def handle_cmd_options():
 
     usage = """
@@ -357,6 +377,7 @@ def handle_cmd_options():
 
     parser.add_argument('-v', '--verbose', action="store_true", help='verbose debugging statements - TBD')
     parser.add_argument('-l', '--level', action="store_true", help='level the ground, no noisy-generation')
+    parser.add_argument('-m', '--mini', action="store_true", help='use smaller blocks')
     parser.add_argument('-s', '--skybox', action="store_true", help='uses a simple SkyBox, mostly for testing')
     parser.add_argument('-b', '--block', default='grass', help='set block-type for initial terrain-generation')
     parser.add_argument('-p', '--play', action="store_true", help='play the game - any cmd-option will also play')
@@ -368,6 +389,50 @@ def handle_cmd_options():
         sys.exit(1)
 
     return cmd_args
+
+
+def run_the_world(cmd_args):
+
+    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, SUB_TERRAIN
+
+    if cmd_args.level:
+        level_ground = True
+        print(f"\nBuilding world with level ground, block-type = [{cmd_args.block}]")
+    else:
+        level_ground = False
+        print(f"\nBuilding world with noisy ground, block-type = [{cmd_args.block}]")
+    scale_val = 1.0
+    if cmd_args.mini:
+        scale_val = 0.9
+
+    MY_BASE = ShowBase()
+    MY_BASE.disableMouse()
+
+    # Dumping in a sample Model for testing - it actually looks pretty funny there.
+    # GROUND_MODEL = "gfx/environment.egg"
+    # environ = MY_BASE.loader.loadModel(GROUND_MODEL)
+    # environ.reparentTo(MY_BASE.render)
+    # environ.setPos(0, 0, 0)
+    # environ.setScale(0.01)
+    # SUB_TERRAIN = environ
+
+    cur_block = cmd_args.block
+    BLOCK_MENU = BlockMenu(MY_BASE, cur_block)
+
+    MY_WORLD = write_ground_blocks(MY_BASE, cur_block, level_ground, scale_val)
+
+    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
+
+    setup_lighting(MY_BASE)
+    setup_fog(MY_BASE, cur_block)
+    setup_camera(MY_BASE, MY_WORLD, CAMERA_START_COORDS)
+    setup_base_keys(MY_BASE, call_pause_screen, handle_click,
+                    toggle_mouse, call_toggle_blocks, reset_stuff)
+    if cmd_args.skybox:
+        setup_skybox(MY_BASE)
+    setup_tasks(MY_BASE)
+
+    MY_BASE.run()
 
 
 if __name__ == '__main__':
