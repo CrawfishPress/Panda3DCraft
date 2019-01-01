@@ -16,6 +16,7 @@ with Panda3D, learn the basics of it.
  - -l, --level, level the ground, no noisy-generation
  - -s, --skybox, uses a simple SkyBox, mostly for testing
  - -b, --block, set block-type for initial terrain-generation, default='grass'
+ - -m, --mini, use smaller Blocks (so seams are visible)
  - -p, --play, play the game - any cmd-option will also play
 
 ## Usage
@@ -24,7 +25,7 @@ with Panda3D, learn the basics of it.
    say, expand the Window to full-screen, hit the *m* key to toggle into that mode.
  - whatever you do, *don't delete the front-corner Block* - if you hit the *r* (reset)
    key, it turns the camera to look at that Block. (I should probably fix that...)  
- - use *a/s/d/w* to move around, and *z/z* to move down/up
+ - use *a/s/d/w* to move around, and *z/x* to move down/up
 
 ### CONTROLS
 
@@ -59,10 +60,11 @@ block-picker/Collider stuff works, and it was just easier to make two separate m
  - Done: Fix the Pause-Screen - it broke after I changed how Camera-handling worked
  - Done: Change Block-type selection to a visible Menu of Blocks, rather than a number.
  - Done: Added level-ground option
+ - Done: Added Wireframe projections of where new Block will be added
  - Combine the two Modes, so you can move around and add blocks at the same time.
  - Handle re-setting the Camera to look at the closest Block that has not been *deleted*.
  - Refactor out all of the *global* variables.
- - Add a third-person view, so Camera can see the person moving around.
+ - Add a third-person view, so Camera can see the person moving around. Maybe Collision Physics?
  - Add flowing water.
  - Add torches, play with lighting.
  - Add a setup.py, and put on PyPi.org?

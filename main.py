@@ -55,6 +55,7 @@ MY_WORLD = {}
 MY_BASE = None
 
 WIREFRAMES = []
+BLOCK_SCALE = 1.0
 
 SKY_BOX = None  # Yay - yet another Global...
 SUB_TERRAIN = None
@@ -213,7 +214,7 @@ def mouse_wrangler(task):
 
 def handle_click(right_click=False):
 
-    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, MOUSE_ACTIVE
+    global PICKER_RAY, TRAVERSER, COLLISION_HANDLER, MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, MOUSE_ACTIVE, BLOCK_SCALE
 
     if PAUSE_MENU.is_paused:
         return
@@ -246,7 +247,7 @@ def handle_click(right_click=False):
         new_coords = get_new_block_coords(picked_node_path)
         block_free = is_new_block_free(new_coords, MY_WORLD)
         if block_free:
-            add_block(BLOCK_MENU.active_block_type, *new_coords, MY_WORLD, MY_BASE)
+            add_block(BLOCK_MENU.active_block_type, *new_coords, MY_WORLD, MY_BASE, BLOCK_SCALE)
     else:
         remove_block_object(picked_node_path, MY_WORLD, MY_BASE)
 
@@ -293,7 +294,7 @@ def reset_stuff(key, value):
     MY_BASE.camera.setPos(CAMERA_START_COORDS)
     try:
         foo = MY_WORLD[(0, 0, 8)].model  # Be aware this block can be *deleted*
-    except AttributeError:
+    except (AttributeError, KeyError):
         raise UserError(random.choice(ERROR_LIST))
 
     # x, y, z = foo.getX(), foo.getY(), foo.getZ()
@@ -393,7 +394,7 @@ def handle_cmd_options():
 
 def run_the_world(cmd_args):
 
-    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, SUB_TERRAIN
+    global MY_BASE, MY_WORLD, PAUSE_MENU, BLOCK_MENU, SUB_TERRAIN, BLOCK_SCALE
 
     if cmd_args.level:
         level_ground = True
@@ -401,9 +402,8 @@ def run_the_world(cmd_args):
     else:
         level_ground = False
         print(f"\nBuilding world with noisy ground, block-type = [{cmd_args.block}]")
-    scale_val = 1.0
     if cmd_args.mini:
-        scale_val = 0.9
+        BLOCK_SCALE = 0.9
 
     MY_BASE = ShowBase()
     MY_BASE.disableMouse()
@@ -419,9 +419,9 @@ def run_the_world(cmd_args):
     cur_block = cmd_args.block
     BLOCK_MENU = BlockMenu(MY_BASE, cur_block)
 
-    MY_WORLD = write_ground_blocks(MY_BASE, cur_block, level_ground, scale_val)
+    MY_WORLD = write_ground_blocks(MY_BASE, cur_block, level_ground, BLOCK_SCALE)
 
-    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD)
+    PAUSE_MENU = PauseScreen(MY_BASE, MY_WORLD, BLOCK_SCALE)
 
     setup_lighting(MY_BASE)
     setup_fog(MY_BASE, cur_block)

@@ -20,10 +20,11 @@ from src.World import add_block as add_block_func
 
 
 class PauseScreen:
-    def __init__(self, base, world):
+    def __init__(self, base, world, scale=1.0):
         self.is_paused = False
         self.base = base
         self.world = world
+        self.scale = scale
         self.addBlock_func = add_block_func
         self.pauseScr = base.aspect2d.attachNewNode("pause")
         self.loadScr = base.aspect2d.attachNewNode("load")  # It also helps for flipping between screens
@@ -216,14 +217,14 @@ class PauseScreen:
         to_load.pop()  # get rid of newline
 
         for key in self.world:
-            self.addBlock_func('air', key[0], key[1], key[2], self.world, self.base)
+            self.addBlock_func('air', key[0], key[1], key[2], self.world, self.base, self.scale)
 
         self.world.clear()
 
         for key in to_load:
             key = key.split(':')
             pos_tup = eval(key[0])
-            self.addBlock_func(key[1], pos_tup[0], pos_tup[1], pos_tup[2], self.world, self.base)
+            self.addBlock_func(key[1], pos_tup[0], pos_tup[1], pos_tup[2], self.world, self.base, self.scale)
         f.close()
         self.loadText2['text'] = "Loaded!"
         print("Loaded!")
