@@ -31,8 +31,9 @@ BLOCKS = {
 }
 
 
+# TODO: re-think the xyz coordinate being used for the model also
 class BlockClass:
-    def __init__(self, my_type, the_base, x, y, z):
+    def __init__(self, my_type, the_base, x, y, z, scale=1.0):
         self.type = my_type
         self.x, self.y, self.z = x, y, z
 
@@ -44,6 +45,7 @@ class BlockClass:
         self.model = self.the_base.loader.loadModel("gfx/block")
         self.model.reparentTo(self.the_base.render)
         self.model.setPos(x, y, z)
+        self.model.setScale(scale)
         self.model.setTag('blockTag', '1')
         self.model.find('**/SideW').setTag('westTag', '2')
         self.model.find('**/SideN').setTag('northTag', '3')
